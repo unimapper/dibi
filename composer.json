@@ -11,7 +11,8 @@
         }
     ],
     "require": {
-        "php": ">=5.4.0"
+        "php": ">=5.4.0",
+        "dibi/dibi": "~2.1.0"
     },
     "autoload": {
             "classmap": ["src/"]
