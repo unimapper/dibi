@@ -183,7 +183,7 @@ class DibiMapper extends \UniMapper\Mapper
         return $this->dataToCollection($result, new $entityClass, $query->entityReflection->getPrimaryProperty());
     }
 
-    public function count(\UniMapper\Query\ICountable $query)
+    public function count(\UniMapper\Query\Count $query)
     {
         $fluent = $this->connection->select()->from("%n", $this->getResource($query));
         $this->getConditions($fluent, $query);
