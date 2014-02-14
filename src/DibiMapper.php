@@ -32,9 +32,9 @@ class DibiMapper extends \UniMapper\Mapper
      *
      * @return void
      */
-    public function __construct(\DibiConnection $connection)
+    public function __construct(array $config)
     {
-        $this->connection = $connection;
+        $this->connection = new \DibiConnection($config);
     }
 
     /**
@@ -62,15 +62,10 @@ class DibiMapper extends \UniMapper\Mapper
      */
     protected function getConditions(\DibiFluent $fluent, \UniMapper\Query $query)
     {
-        $properties = $this->getMapperProperties($query);
+        $properties = $query->entityReflection->getProperties((string) $this);
         foreach ($query->conditions as $condition) {
 
             $propertyName = $condition->getExpression();
-
-            // Skip properties not related to this mapper
-            if (!isset($properties[$propertyName])) {
-                continue;
-            }
 
             // Get column name
             $mappedPropertyName = $properties[$propertyName]->getMapping()->getName((string) $this);
