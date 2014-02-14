@@ -21,7 +21,8 @@ class DibiMapper extends \UniMapper\Mapper
         "string" => "%s",
         "NULL" => "NULL",
         "DateTime" => "%t",
-        "array" => "%in"
+        "array" => "%in",
+        "double" => "%f"
     );
 
     /**
