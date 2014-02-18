@@ -2,7 +2,8 @@
 
 namespace UniMapper\Mapper;
 
-use UniMapper\Exceptions\MapperException;
+use UniMapper\Query\Object\Order,
+    UniMapper\Exceptions\MapperException;
 
 /**
  * Dibi mapper can be generally used to communicate between repository and
@@ -164,6 +165,26 @@ class DibiMapper extends \UniMapper\Mapper
         if (count($query->orders) > 0) {
 
             foreach ($query->orders as $order) {
+
+                if (!$order instanceof Order) {
+                    throw new MapperException("Order collection must contain only \UniMapper\Query\Object\Order objects!");
+                }
+
+                // Map property name to defined mapping definition
+                $properties = $query->entityReflection->getProperties((string) $this);
+
+                // Skip properties not related to this mapper
+                if (!isset($properties[$order->propertyName])) {
+                    continue;
+                }
+
+                // Map property
+                $mapping = $properties[$order->propertyName]->getMapping();
+                if ($mapping) {
+                    $propertyName = $mapping->getName((string) $this);
+                } else {
+                    $propertyName = $order->propertyName;
+                }
 
                 $fluent->orderBy($order->propertyName)
                     ->asc($order->asc)
