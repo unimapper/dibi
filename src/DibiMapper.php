@@ -41,6 +41,18 @@ class DibiMapper extends \UniMapper\Mapper
     }
 
     /**
+     * Custom query
+     *
+     * @param \UniMapper\Query\Custom $query Query
+     *
+     * @return mixed
+     */
+    public function custom(\UniMapper\Query\Custom $query)
+    {
+        throw new MapperException("Not implemented!");
+    }
+
+    /**
      * Modify result value eg. convert DibiDateTime do Datetime etc.
      *
      * @param mixed $value Value
