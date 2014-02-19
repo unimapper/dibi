@@ -80,14 +80,14 @@ class DibiMapper extends \UniMapper\Mapper
         $properties = $entityReflection->getProperties((string) $this);
         foreach ($conditions as $condition) {
 
-            $propertyName = $condition->getExpression();
+            $columnName = $condition->getExpression();
 
             // Get column name
-            $mapping = $properties[$propertyName]->getMapping();
+            $mapping = $properties[$columnName]->getMapping();
             if ($mapping) {
                 $mappedPropertyName = $mapping->getName((string) $this);
                 if ($mappedPropertyName) {
-                    $propertyName = $mappedPropertyName;
+                    $columnName = $mappedPropertyName;
                 }
             }
 
@@ -115,7 +115,7 @@ class DibiMapper extends \UniMapper\Mapper
             // Add condition
             $fluent->where(
                 "%n %sql " . $this->modificators[$type],
-                $condition->getExpression(),
+                $columnName,
                 $operator,
                 $condition->getValue()
             );
