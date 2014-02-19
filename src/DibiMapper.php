@@ -3,6 +3,8 @@
 namespace UniMapper\Mapper;
 
 use UniMapper\Query\Object\Order,
+    UniMapper\Query\Object\Condition,
+    UniMapper\Reflection\EntityReflection,
     UniMapper\Exceptions\MapperException;
 
 /**
@@ -61,17 +63,20 @@ class DibiMapper extends \UniMapper\Mapper
      *
      * @return \DibiFluent
      */
-    protected function getConditions(\DibiFluent $fluent, \UniMapper\Query $query)
+    protected function getConditions(\DibiFluent $fluent, EntityReflection $entityReflection, array $conditions)
     {
-        $properties = $query->entityReflection->getProperties((string) $this);
-        foreach ($query->conditions as $condition) {
+        $properties = $entityReflection->getProperties((string) $this);
+        foreach ($conditions as $condition) {
 
             $propertyName = $condition->getExpression();
 
             // Get column name
-            $mappedPropertyName = $properties[$propertyName]->getMapping()->getName((string) $this);
-            if ($mappedPropertyName) {
-                $propertyName = $mappedPropertyName;
+            $mapping = $properties[$propertyName]->getMapping();
+            if ($mapping) {
+                $mappedPropertyName = $mapping->getName((string) $this);
+                if ($mappedPropertyName) {
+                    $propertyName = $mappedPropertyName;
+                }
             }
 
             // Convert data type definition to dibi modificator
@@ -115,14 +120,15 @@ class DibiMapper extends \UniMapper\Mapper
      */
     public function delete(\UniMapper\Query\Delete $query)
     {
-        // @todo this should pPrevent deleting all data, but it can be solved after primarProperty implement in better way
+        // @todo this should prevent deleting all data, but it can be solved after primarProperty implement in better way
         if (count($query->conditions) === 0) {
             throw new MapperException("At least one condition must be specified!");
         }
 
         return $this->getConditions(
-            $this->connection->delete($this->getResource($query)),
-            $query
+            $this->connection->delete($this->getResource($query->entityReflection)),
+            $query->entityReflection,
+            $query->conditions
         )->execute();
     }
 
@@ -133,7 +139,27 @@ class DibiMapper extends \UniMapper\Mapper
      */
     public function findOne(\UniMapper\Query\FindOne $query)
     {
-        throw new MapperException("Not implemented!");
+        $selection = $this->getSelection($query->entityReflection);
+
+        $fluent = $this->connection
+            ->select("[" . implode("],[", $selection) . "]")
+            ->from("%n", $this->getResource($query->entityReflection));
+
+        $primaryProperty = $query->entityReflection->getPrimaryProperty();
+        if ($primaryProperty === null) {
+            throw new MapperException("Primary property is not set in  " .  $query->entityReflection->getName() . "!");
+        }
+
+        $condition = new Condition($primaryProperty->getName(), "=", $query->primaryValue);
+        $this->getConditions($fluent, $query->entityReflection, array($condition));
+
+        $result = $fluent->fetchSingle();
+
+        $entityClass = $query->entityReflection->getName();
+        if ($result) {
+            $this->dataToEntity($result, $entityClass);
+        }
+        return false;
     }
 
     /**
@@ -145,14 +171,13 @@ class DibiMapper extends \UniMapper\Mapper
      */
     public function findAll(\UniMapper\Query\FindAll $query)
     {
-        $selection = $this->getSelection($query);
-        if (count($selection) === 0) {
-            return false;
-        }
-        $fluent = $this->connection->select("[" . implode("],[", $selection) . "]");
+        $selection = $this->getSelection($query->entityReflection, $query->selection);
 
-        $fluent->from("%n", $this->getResource($query));
-        $this->getConditions($fluent, $query);
+        $fluent = $this->connection
+            ->select("[" . implode("],[", $selection) . "]")
+            ->from("%n", $this->getResource($query->entityReflection));
+
+        $this->getConditions($fluent, $query->entityReflection, $query->conditions);
 
         if ($query->limit > 0) {
             $fluent->limit("%i", $query->limit);
@@ -202,8 +227,8 @@ class DibiMapper extends \UniMapper\Mapper
 
     public function count(\UniMapper\Query\Count $query)
     {
-        $fluent = $this->connection->select()->from("%n", $this->getResource($query));
-        $this->getConditions($fluent, $query);
+        $fluent = $this->connection->select()->from("%n", $this->getResource($query->entityReflection));
+        $this->getConditions($fluent, $query->entityReflection, $query->conditions);
         return $fluent->count();
     }
 
@@ -221,7 +246,7 @@ class DibiMapper extends \UniMapper\Mapper
             throw new MapperException("Entity has no mapped values!");
         }
 
-        $this->connection->insert($this->getResource($query), $values)
+        $this->connection->insert($this->getResource($query->entityReflection), $values)
             ->execute();
 
         return (integer) $this->connection->getInsertId();
@@ -242,10 +267,10 @@ class DibiMapper extends \UniMapper\Mapper
         }
 
         $fluent = $this->connection->update(
-            $this->getResource($query),
+            $this->getResource($query->entityReflection),
             $this->entityToData($query->entity)
         );
-        return $this->getConditions($fluent, $query)->execute();
+        return $this->getConditions($fluent, $query->entityReflection, $query->conditions)->execute();
     }
 
 }
