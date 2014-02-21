@@ -28,16 +28,10 @@ class DibiMapper extends \UniMapper\Mapper
         "double" => "%f"
     );
 
-    /**
-     * Constructor
-     *
-     * @param \DibiConnection $connection Database connection
-     *
-     * @return void
-     */
-    public function __construct(array $config)
+    public function __construct($name, \DibiConnection $connection)
     {
-        $this->connection = new \DibiConnection($config);
+        parent::__construct($name);
+        $this->connection = $connection;
     }
 
     /**
@@ -77,7 +71,7 @@ class DibiMapper extends \UniMapper\Mapper
      */
     protected function getConditions(\DibiFluent $fluent, EntityReflection $entityReflection, array $conditions)
     {
-        $properties = $entityReflection->getProperties((string) $this);
+        $properties = $entityReflection->getProperties($this->name);
         foreach ($conditions as $condition) {
 
             $columnName = $condition->getExpression();
@@ -85,7 +79,7 @@ class DibiMapper extends \UniMapper\Mapper
             // Get column name
             $mapping = $properties[$columnName]->getMapping();
             if ($mapping) {
-                $mappedPropertyName = $mapping->getName((string) $this);
+                $mappedPropertyName = $mapping->getName($this->name);
                 if ($mappedPropertyName) {
                     $columnName = $mappedPropertyName;
                 }
@@ -208,7 +202,7 @@ class DibiMapper extends \UniMapper\Mapper
                 }
 
                 // Map property name to defined mapping definition
-                $properties = $query->entityReflection->getProperties((string) $this);
+                $properties = $query->entityReflection->getProperties($this->name);
 
                 // Skip properties not related to this mapper
                 if (!isset($properties[$order->propertyName])) {
@@ -218,7 +212,7 @@ class DibiMapper extends \UniMapper\Mapper
                 // Map property
                 $mapping = $properties[$order->propertyName]->getMapping();
                 if ($mapping) {
-                    $propertyName = $mapping->getName((string) $this);
+                    $propertyName = $mapping->getName($this->name);
                 } else {
                     $propertyName = $order->propertyName;
                 }
