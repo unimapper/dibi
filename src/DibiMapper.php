@@ -243,7 +243,7 @@ class DibiMapper extends \UniMapper\Mapper
      *
      * @param \UniMapper\Query\Insert $query Query
      *
-     * @return mixed
+     * @return integer|null
      */
     public function insert(\UniMapper\Query\Insert $query)
     {
@@ -252,10 +252,10 @@ class DibiMapper extends \UniMapper\Mapper
             throw new MapperException("Entity has no mapped values!");
         }
 
-        $this->connection->insert($this->getResource($query->entityReflection), $values)
-            ->execute();
-
-        return (integer) $this->connection->getInsertId();
+        $this->connection->insert($this->getResource($query->entityReflection), $values)->execute();
+        if ($query->returnPrimaryValue) {
+            return $this->connection->getInsertId();
+        }
     }
 
     /**
