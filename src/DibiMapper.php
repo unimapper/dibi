@@ -74,7 +74,11 @@ class DibiMapper extends \UniMapper\Mapper
         $properties = $entityReflection->getProperties($this->name);
         foreach ($conditions as $condition) {
 
+            // Skip unrelated conditions
             $columnName = $condition->getExpression();
+            if (!isset($properties[$columnName])) {
+                continue;
+            }
 
             // Get column name
             $mapping = $properties[$columnName]->getMapping();
@@ -159,11 +163,11 @@ class DibiMapper extends \UniMapper\Mapper
         $condition = new Condition($primaryProperty->getName(), "=", $query->primaryValue);
         $this->getConditions($fluent, $query->entityReflection, array($condition));
 
-        $result = $fluent->fetchSingle();
+        $result = $fluent->fetch();
 
         $entityClass = $query->entityReflection->getName();
         if ($result) {
-            $this->dataToEntity($result, $entityClass);
+            $this->dataToEntity($result, new $entityClass);
         }
         return false;
     }
@@ -263,20 +267,20 @@ class DibiMapper extends \UniMapper\Mapper
      *
      * @param \UniMapper\Query\Update $query Query
      *
-     * @return mixed
+     * @return boolean
      */
     public function update(\UniMapper\Query\Update $query)
     {
-        // @todo This can be solved after primarProperty implement
-        if (count($query->conditions) === 0) {
-            throw new MapperException("At least one condition must be specified!");
+        $values = $this->entityToData($query->entity);
+        if (empty($values)) {
+            return false;
         }
 
         $fluent = $this->connection->update(
             $this->getResource($query->entityReflection),
             $this->entityToData($query->entity)
         );
-        return $this->getConditions($fluent, $query->entityReflection, $query->conditions)->execute();
+        return (bool) $this->getConditions($fluent, $query->entityReflection, $query->conditions)->execute();
     }
 
 }
