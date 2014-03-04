@@ -43,6 +43,10 @@ class DibiMapper extends \UniMapper\Mapper
      */
     public function custom(\UniMapper\Query\Custom $query)
     {
+        if ($query->method === \UniMapper\Query\Custom::METHOD_RAW) {
+            return $this->connection->query($query->query);
+        }
+
         throw new MapperException("Not implemented!");
     }
 
