@@ -3,7 +3,6 @@
 namespace UniMapper\Mapper;
 
 use UniMapper\Query\Object\Order,
-    UniMapper\Query\Object\Condition,
     UniMapper\Reflection\EntityReflection,
     UniMapper\Exceptions\MapperException;
 
@@ -78,23 +77,24 @@ class DibiMapper extends \UniMapper\Mapper
         $properties = $entityReflection->getProperties($this->name);
         foreach ($conditions as $condition) {
 
+            list($propertyName, $operator, $value, $joiner) = $condition;
+
             // Skip unrelated conditions
-            $columnName = $condition->getExpression();
-            if (!isset($properties[$columnName])) {
+            if (!isset($properties[$propertyName])) {
                 continue;
             }
 
-            // Get column name
-            $mapping = $properties[$columnName]->getMapping();
+            // Apply defined mapping from entity
+            $mapping = $properties[$propertyName]->getMapping();
             if ($mapping) {
                 $mappedPropertyName = $mapping->getName($this->name);
                 if ($mappedPropertyName) {
-                    $columnName = $mappedPropertyName;
+                    $propertyName = $mappedPropertyName;
                 }
             }
 
             // Convert data type definition to dibi modificator
-            $type = gettype($condition->getValue());
+            $type = gettype($value);
             if ($type === "object") {
                 $type = get_class($type);
             }
@@ -105,7 +105,6 @@ class DibiMapper extends \UniMapper\Mapper
             }
 
             // Get operator
-            $operator = $condition->getOperator();
             if ($operator === "COMPARE") {
                 if ($this->connection->getDriver() instanceof \DibiPostgreDriver) {
                     $operator = "ILIKE";
@@ -115,12 +114,21 @@ class DibiMapper extends \UniMapper\Mapper
             }
 
             // Add condition
-            $fluent->where(
-                "%n %sql " . $this->modificators[$type],
-                $columnName,
-                $operator,
-                $condition->getValue()
-            );
+            if ($joiner === "AND") {
+                $fluent->where(
+                    "%n %sql " . $this->modificators[$type],
+                    $propertyName,
+                    $operator,
+                    $value
+                );
+            } else {
+                $fluent->or(
+                    "%n %sql " . $this->modificators[$type],
+                    $propertyName,
+                    $operator,
+                    $value
+                );
+            }
         }
         return $fluent;
     }
@@ -164,7 +172,7 @@ class DibiMapper extends \UniMapper\Mapper
             throw new MapperException("Primary property is not set in  " .  $query->entityReflection->getName() . "!");
         }
 
-        $condition = new Condition($primaryProperty->getName(), "=", $query->primaryValue);
+        $condition = array($primaryProperty->getName(), "=", $query->primaryValue, "AND");
         $this->getConditions($fluent, $query->entityReflection, array($condition));
 
         $result = $fluent->fetch();
