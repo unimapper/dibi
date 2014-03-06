@@ -249,7 +249,7 @@ class DibiMapper extends \UniMapper\Mapper
 
     public function count(\UniMapper\Query\Count $query)
     {
-        $fluent = $this->connection->select()->from("%n", $this->getResource($query->entityReflection));
+        $fluent = $this->connection->select("*")->from("%n", $this->getResource($query->entityReflection));
         $this->getConditions($fluent, $query->entityReflection, $query->conditions);
         return $fluent->count();
     }
