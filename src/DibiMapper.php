@@ -179,7 +179,10 @@ class DibiMapper extends \UniMapper\Mapper
 
         $entityClass = $query->entityReflection->getName();
         if ($result) {
-            $this->dataToEntity($result, new $entityClass);
+
+            $entity = new $entityClass;
+            $entity->importData($result, $this->name, $this->modifyResultValue());
+            return $entity;
         }
         return false;
     }
@@ -239,12 +242,12 @@ class DibiMapper extends \UniMapper\Mapper
             }
         }
 
-        $entityClass = $query->entityReflection->getName();
         $result = $fluent->fetchAll();
         if (count($result === 0)) {
             return false;
         }
-        return $this->dataToCollection($result, new $entityClass, $query->entityReflection->getPrimaryProperty());
+
+        return $this->createCollection($query->entityReflection->getName(), $result, $this->modifyResultValue());
     }
 
     public function count(\UniMapper\Query\Count $query)
