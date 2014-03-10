@@ -192,7 +192,7 @@ class DibiMapper extends \UniMapper\Mapper
      *
      * @param \UniMapper\Query\FindAll $query FindAll Query
      *
-     * @return mixed
+     * @return \UniMapper\EntityCollection|false
      */
     public function findAll(\UniMapper\Query\FindAll $query)
     {
