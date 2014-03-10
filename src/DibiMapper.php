@@ -56,7 +56,7 @@ class DibiMapper extends \UniMapper\Mapper
      *
      * @return mixed
      */
-    protected function modifyResultValue($value)
+    public function modifyResultValue($value)
     {
         if ($value instanceof \DibiDateTime) {
             return new \DateTime($value);
@@ -181,7 +181,7 @@ class DibiMapper extends \UniMapper\Mapper
         if ($result) {
 
             $entity = new $entityClass;
-            $entity->importData($result, $this->name, $this->modifyResultValue());
+            $entity->importData($result, $this->name, array($this, "modifyResultValue"));
             return $entity;
         }
         return false;
@@ -247,7 +247,7 @@ class DibiMapper extends \UniMapper\Mapper
             return false;
         }
 
-        return $this->createCollection($query->entityReflection->getName(), $result, $this->modifyResultValue());
+        return $this->createCollection($query->entityReflection->getName(), $result, array($this, "modifyResultValue"));
     }
 
     public function count(\UniMapper\Query\Count $query)
