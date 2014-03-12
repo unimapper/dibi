@@ -177,12 +177,8 @@ class DibiMapper extends \UniMapper\Mapper
 
         $result = $fluent->fetch();
 
-        $entityClass = $query->entityReflection->getName();
         if ($result) {
-
-            $entity = new $entityClass;
-            $entity->importData($result, $this->name, array($this, "modifyResultValue"));
-            return $entity;
+            return $this->createEntity($query->entityReflection->getName(), $result, array($this, "modifyResultValue"));
         }
         return false;
     }
