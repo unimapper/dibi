@@ -94,7 +94,7 @@ class DibiMapper extends \UniMapper\Mapper
             }
 
             // Convert data type definition to dibi modificator
-            $type = $properties[$propertyName]->getType();
+            $type = gettype($value);
             if ($type === "object") {
                 $type = get_class($type);
             }
