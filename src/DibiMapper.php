@@ -239,7 +239,7 @@ class DibiMapper extends \UniMapper\Mapper
         }
 
         $result = $fluent->fetchAll();
-        if (count($result === 0)) {
+        if (count($result) === 0) {
             return false;
         }
 
