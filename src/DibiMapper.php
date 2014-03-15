@@ -232,7 +232,7 @@ class DibiMapper extends \UniMapper\Mapper
                     $propertyName = $order->propertyName;
                 }
 
-                $fluent->orderBy($order->propertyName)
+                $fluent->orderBy($propertyName)
                     ->asc($order->asc)
                     ->desc($order->desc);
             }
