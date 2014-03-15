@@ -2,8 +2,7 @@
 
 namespace UniMapper\Mapper;
 
-use UniMapper\Query\Object\Order,
-    UniMapper\Reflection\EntityReflection,
+use UniMapper\Reflection\EntityReflection,
     UniMapper\Exceptions\MapperException;
 
 /**
@@ -208,33 +207,27 @@ class DibiMapper extends \UniMapper\Mapper
             $fluent->offset("%i", $query->offset);
         }
 
-        if (count($query->orders) > 0) {
+        if (count($query->orderBy) > 0) {
 
-            foreach ($query->orders as $order) {
-
-                if (!$order instanceof Order) {
-                    throw new MapperException("Order collection must contain only \UniMapper\Query\Object\Order objects!");
-                }
+            foreach ($query->orderBy as $orderBy) {
 
                 // Map property name to defined mapping definition
                 $properties = $query->entityReflection->getProperties($this->name);
 
                 // Skip properties not related to this mapper
-                if (!isset($properties[$order->propertyName])) {
+                if (!isset($properties[$orderBy[0]])) {
                     continue;
                 }
 
                 // Map property
-                $mapping = $properties[$order->propertyName]->getMapping();
+                $mapping = $properties[$orderBy[0]]->getMapping();
                 if ($mapping) {
                     $propertyName = $mapping->getName($this->name);
                 } else {
-                    $propertyName = $order->propertyName;
+                    $propertyName = $orderBy[0];
                 }
 
-                $fluent->orderBy($propertyName)
-                    ->asc($order->asc)
-                    ->desc($order->desc);
+                $fluent->orderBy($propertyName)->{$orderBy[1]}();
             }
         }
 
