@@ -2,7 +2,7 @@
 
 namespace UniMapper\Mapper;
 
-use UniMapper\Reflection\EntityReflection,
+use UniMapper\Reflection,
     UniMapper\Exceptions\MapperException;
 
 /**
@@ -71,7 +71,7 @@ class DibiMapper extends \UniMapper\Mapper
      *
      * @return \DibiFluent
      */
-    protected function getConditions(\DibiFluent $fluent, EntityReflection $entityReflection, array $conditions)
+    protected function getConditions(\DibiFluent $fluent, Reflection\Entity $entityReflection, array $conditions)
     {
         $properties = $entityReflection->getProperties($this->name);
         foreach ($conditions as $condition) {
