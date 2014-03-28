@@ -64,9 +64,19 @@ class DibiMapper extends \UniMapper\Mapper
 
     private function setConditions(\DibiFluent $fluent, array $conditions)
     {
+        $i = 0;
         foreach ($conditions as $condition) {
-            list($joiner, $converted) = $this->convertCondition($condition);
-            $fluent->where($joiner, $converted);
+
+            list($joiner, $query, $modificators) = $this->convertCondition($condition);
+
+            array_unshift($modificators, $query);
+
+            if ($joiner === "AND" || $i === 0) {
+                $fluent->where(array($modificators));
+            } else {
+                $fluent->or(array($modificators));
+            }
+            $i++;
         }
     }
 
@@ -77,13 +87,22 @@ class DibiMapper extends \UniMapper\Mapper
 
             list($nestedConditions, $joiner) = $condition;
 
-            $result = array();
+            $i = 0;
+            $query = "";
+            $modificators = array();
             foreach ($nestedConditions as $nestedCondition) {
-                $result[] = $this->convertCondition($nestedCondition);
+                list($conditionJoiner, $conditionQuery, $conditionModificators) = $this->convertCondition($nestedCondition);
+                if ($i > 0) {
+                    $query .= " " . $conditionJoiner . " ";
+                }
+                $query .= $conditionQuery;
+                $modificators = array_merge($modificators, $conditionModificators);
+                $i++;
             }
             return array(
-                "%" . strtolower($joiner),
-                $result
+                $joiner,
+                "(" . $query . ")",
+                $modificators
             );
         } else {
             // Simple condition
@@ -96,9 +115,7 @@ class DibiMapper extends \UniMapper\Mapper
                 $type = get_class($type);
             }
             if (!isset($this->modificators[$type])) {
-                throw new MapperException(
-                    "Value type " . $type . " is not supported"
-                );
+                throw new MapperException("Value type " . $type . " is not supported");
             }
 
             // Get operator
@@ -111,14 +128,12 @@ class DibiMapper extends \UniMapper\Mapper
             }
 
             return array(
-                "%" . strtolower($joiner),
+                $joiner,
+                "%n %sql " . $this->modificators[$type],
                 array(
-                    array(
-                        "%n %sql " . $this->modificators[$type],
-                        $columnName,
-                        $operator,
-                        $value
-                    )
+                    $columnName,
+                    $operator,
+                    $value
                 )
             );
         }
