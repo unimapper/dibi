@@ -2,8 +2,7 @@
 
 namespace UniMapper\Mapper;
 
-use UniMapper\Reflection,
-    UniMapper\Exceptions\MapperException;
+use UniMapper\Exceptions\MapperException;
 
 /**
  * Dibi mapper can be generally used to communicate between repository and
@@ -63,34 +62,52 @@ class DibiMapper extends \UniMapper\Mapper
         return $value;
     }
 
-    /**
-     * Get mapped conditions from query
-     *
-     * @param \DibiFluent    $fluent Dibi fluent
-     * @param \UniMapper\Query $query  Query object
-     *
-     * @return \DibiFluent
-     */
-    protected function getConditions(\DibiFluent $fluent, Reflection\Entity $entityReflection, array $conditions)
+    private function setConditions(\DibiFluent $fluent, array $conditions)
     {
-        $properties = $entityReflection->getProperties($this->name);
+        $i = 0;
         foreach ($conditions as $condition) {
 
-            list($propertyName, $operator, $value, $joiner) = $condition;
+            list($joiner, $query, $modificators) = $this->convertCondition($condition);
 
-            // Skip unrelated conditions
-            if (!isset($properties[$propertyName])) {
-                continue;
+            array_unshift($modificators, $query);
+
+            if ($joiner === "AND" || $i === 0) {
+                $fluent->where(array($modificators));
+            } else {
+                $fluent->or(array($modificators));
             }
+            $i++;
+        }
+    }
 
-            // Apply defined mapping from entity
-            $mapping = $properties[$propertyName]->getMapping();
-            if ($mapping) {
-                $mappedPropertyName = $mapping->getName($this->name);
-                if ($mappedPropertyName) {
-                    $propertyName = $mappedPropertyName;
+    public function convertCondition(array $condition)
+    {
+        if (is_array($condition[0])) {
+            // Nested conditions
+
+            list($nestedConditions, $joiner) = $condition;
+
+            $i = 0;
+            $query = "";
+            $modificators = array();
+            foreach ($nestedConditions as $nestedCondition) {
+                list($conditionJoiner, $conditionQuery, $conditionModificators) = $this->convertCondition($nestedCondition);
+                if ($i > 0) {
+                    $query .= " " . $conditionJoiner . " ";
                 }
+                $query .= $conditionQuery;
+                $modificators = array_merge($modificators, $conditionModificators);
+                $i++;
             }
+            return array(
+                $joiner,
+                "(" . $query . ")",
+                $modificators
+            );
+        } else {
+            // Simple condition
+
+            list($columnName, $operator, $value, $joiner) = $condition;
 
             // Convert data type definition to dibi modificator
             $type = gettype($value);
@@ -98,9 +115,7 @@ class DibiMapper extends \UniMapper\Mapper
                 $type = get_class($type);
             }
             if (!isset($this->modificators[$type])) {
-                throw new MapperException(
-                    "Value type " . $type . " is not supported"
-                );
+                throw new MapperException("Value type " . $type . " is not supported");
             }
 
             // Get operator
@@ -112,24 +127,16 @@ class DibiMapper extends \UniMapper\Mapper
                 }
             }
 
-            // Add condition
-            if ($joiner === "AND") {
-                $fluent->where(
-                    "%n %sql " . $this->modificators[$type],
-                    $propertyName,
+            return array(
+                $joiner,
+                "%n %sql " . $this->modificators[$type],
+                array(
+                    $columnName,
                     $operator,
                     $value
-                );
-            } else {
-                $fluent->or(
-                    "%n %sql " . $this->modificators[$type],
-                    $propertyName,
-                    $operator,
-                    $value
-                );
-            }
+                )
+            );
         }
-        return $fluent;
     }
 
     /**
@@ -146,11 +153,9 @@ class DibiMapper extends \UniMapper\Mapper
             throw new MapperException("At least one condition must be specified!");
         }
 
-        return $this->getConditions(
-            $this->connection->delete($this->getResource($query->entityReflection)),
-            $query->entityReflection,
-            $query->conditions
-        )->execute();
+        $fluent = $this->connection->delete($this->getResource($query->entityReflection));
+        $this->setConditions($fluent, $this->translateConditions($query->entityReflection, $query->conditions));
+        return $fluent->execute();
     }
 
     /**
@@ -172,7 +177,7 @@ class DibiMapper extends \UniMapper\Mapper
         }
 
         $condition = array($primaryProperty->getName(), "=", $query->primaryValue, "AND");
-        $this->getConditions($fluent, $query->entityReflection, array($condition));
+        $this->setConditions($fluent, $this->translateConditions($query->entityReflection, array($condition)));
 
         $result = $fluent->fetch();
 
@@ -197,7 +202,7 @@ class DibiMapper extends \UniMapper\Mapper
             ->select("[" . implode("],[", $selection) . "]")
             ->from("%n", $this->getResource($query->entityReflection));
 
-        $this->getConditions($fluent, $query->entityReflection, $query->conditions);
+        $this->setConditions($fluent, $this->translateConditions($query->entityReflection, $query->conditions));
 
         if ($query->limit > 0) {
             $fluent->limit("%i", $query->limit);
@@ -242,7 +247,7 @@ class DibiMapper extends \UniMapper\Mapper
     public function count(\UniMapper\Query\Count $query)
     {
         $fluent = $this->connection->select("*")->from("%n", $this->getResource($query->entityReflection));
-        $this->getConditions($fluent, $query->entityReflection, $query->conditions);
+        $this->setConditions($fluent, $this->translateConditions($query->entityReflection, $query->conditions));
         return $fluent->count();
     }
 
@@ -284,7 +289,8 @@ class DibiMapper extends \UniMapper\Mapper
             $this->getResource($query->entityReflection),
             $this->entityToData($query->entity)
         );
-        return (bool) $this->getConditions($fluent, $query->entityReflection, $query->conditions)->execute();
+        $this->setConditions($fluent, $this->translateConditions($query->entityReflection, $query->conditions));
+        return (bool) $fluent->execute();
     }
 
 }
