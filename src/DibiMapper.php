@@ -37,7 +37,7 @@ class DibiMapper extends \UniMapper\Mapper
         if ($data instanceof \DibiDateTime) {
             return new \DateTime($data);
         }
-        parent::mapValue($property, $data);
+        return parent::mapValue($property, $data);
     }
 
     /**
