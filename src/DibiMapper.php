@@ -54,7 +54,7 @@ class DibiMapper extends \UniMapper\Mapper
      *
      * @return mixed
      */
-    protected function beforeCreateValue($value)
+    protected function beforeMapValue($value)
     {
         if ($value instanceof \DibiDateTime) {
             return new \DateTime($value);
@@ -182,7 +182,7 @@ class DibiMapper extends \UniMapper\Mapper
         $result = $fluent->fetch();
 
         if ($result) {
-            return $this->createEntity($query->entityReflection->getName(), $result);
+            return $this->mapEntity($query->entityReflection->getName(), $result);
         }
         return false;
     }
@@ -241,7 +241,7 @@ class DibiMapper extends \UniMapper\Mapper
             return false;
         }
 
-        return $this->createCollection($query->entityReflection->getName(), $result);
+        return $this->mapCollection($query->entityReflection->getName(), $result);
     }
 
     public function count(\UniMapper\Query\Count $query)
@@ -260,7 +260,7 @@ class DibiMapper extends \UniMapper\Mapper
      */
     public function insert(\UniMapper\Query\Insert $query)
     {
-        $values = $this->entityToData($query->entity);
+        $values = $this->unmapEntity($query->entity);
         if (empty($values)) {
             throw new MapperException("Entity has no mapped values!");
         }
@@ -280,14 +280,14 @@ class DibiMapper extends \UniMapper\Mapper
      */
     public function update(\UniMapper\Query\Update $query)
     {
-        $values = $this->entityToData($query->entity);
+        $values = $this->unmapEntity($query->entity);
         if (empty($values)) {
             return false;
         }
 
         $fluent = $this->connection->update(
             $this->getResource($query->entityReflection),
-            $this->entityToData($query->entity)
+            $this->unmapEntity($query->entity)
         );
         $this->setConditions($fluent, $this->translateConditions($query->entityReflection, $query->conditions));
         return (bool) $fluent->execute();
