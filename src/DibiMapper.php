@@ -2,7 +2,8 @@
 
 namespace UniMapper\Mapper;
 
-use UniMapper\Exceptions\MapperException;
+use UniMapper\Exceptions\MapperException,
+    UniMapper\Reflection;
 
 /**
  * Dibi mapper can be generally used to communicate between repository and
@@ -31,6 +32,14 @@ class DibiMapper extends \UniMapper\Mapper
         $this->connection = $connection;
     }
 
+    protected function mapValue(Reflection\Entity\Property $property, $data)
+    {
+        if ($data instanceof \DibiDateTime) {
+            return new \DateTime($data);
+        }
+        parent::mapValue($property, $data);
+    }
+
     /**
      * Custom query
      *
@@ -45,21 +54,6 @@ class DibiMapper extends \UniMapper\Mapper
         }
 
         throw new MapperException("Not implemented!");
-    }
-
-    /**
-     * Modify result value eg. convert DibiDateTime do Datetime etc.
-     *
-     * @param mixed $value Value
-     *
-     * @return mixed
-     */
-    protected function beforeMapValue($value)
-    {
-        if ($value instanceof \DibiDateTime) {
-            return new \DateTime($value);
-        }
-        return $value;
     }
 
     private function setConditions(\DibiFluent $fluent, array $conditions)
