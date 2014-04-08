@@ -14,6 +14,11 @@
         "php": ">=5.4.0",
         "dibi/dibi": "~2.1.0"
     },
+    "require-dev": {
+        "bauer01/unimapper": "@dev",
+        "nette/tester": "~1.1.0",
+        "janmarek/mockista": "@dev"
+    },
     "autoload": {
             "classmap": ["src/"]
     }
