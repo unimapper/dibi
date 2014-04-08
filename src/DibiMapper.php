@@ -66,9 +66,9 @@ class DibiMapper extends \UniMapper\Mapper
             array_unshift($modificators, $query);
 
             if ($joiner === "AND" || $i === 0) {
-                $fluent->where(array($modificators));
+                call_user_func_array(array($fluent, "where"), $modificators);
             } else {
-                $fluent->or(array($modificators));
+                call_user_func_array(array($fluent, "or"), $modificators);
             }
             $i++;
         }
@@ -109,7 +109,7 @@ class DibiMapper extends \UniMapper\Mapper
                 $type = get_class($type);
             }
             if (!isset($this->modificators[$type])) {
-                throw new MapperException("Value type " . $type . " is not supported");
+                throw new MapperException("Unsupported value type " . $type . " given!");
             }
 
             // Get operator
