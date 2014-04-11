@@ -167,7 +167,7 @@ class DibiMapper extends \UniMapper\Mapper
 
         $primaryProperty = $query->entityReflection->getPrimaryProperty();
         if ($primaryProperty === null) {
-            throw new MapperException("Primary property is not set in  " .  $query->entityReflection->getName() . "!");
+            throw new MapperException("Primary property is not set in  " .  $query->entityReflection->getClassName() . "!");
         }
 
         $condition = array($primaryProperty->getName(), "=", $query->primaryValue, "AND");
@@ -176,7 +176,7 @@ class DibiMapper extends \UniMapper\Mapper
         $result = $fluent->fetch();
 
         if ($result) {
-            return $this->mapEntity($query->entityReflection->getName(), $result);
+            return $this->mapEntity($query->entityReflection->getClassName(), $result);
         }
         return false;
     }
@@ -235,7 +235,7 @@ class DibiMapper extends \UniMapper\Mapper
             return false;
         }
 
-        return $this->mapCollection($query->entityReflection->getName(), $result);
+        return $this->mapCollection($query->entityReflection->getClassName(), $result);
     }
 
     public function count(\UniMapper\Query\Count $query)
