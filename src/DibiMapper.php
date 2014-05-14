@@ -211,22 +211,11 @@ class DibiMapper extends \UniMapper\Mapper
             foreach ($query->orderBy as $orderBy) {
 
                 // Map property name to defined mapping definition
-                $properties = $query->entityReflection->getProperties($this->name);
-
-                // Skip properties not related to this mapper
-                if (!isset($properties[$orderBy[0]])) {
-                    continue;
-                }
+                $properties = $query->entityReflection->getProperties();
+                $column = $properties[$orderBy[0]]->getMappedName();
 
                 // Map property
-                $mapping = $properties[$orderBy[0]]->getMapping();
-                if ($mapping) {
-                    $propertyName = $mapping->getName($this->name);
-                } else {
-                    $propertyName = $orderBy[0];
-                }
-
-                $fluent->orderBy($propertyName)->{$orderBy[1]}();
+                $fluent->orderBy($column)->{$orderBy[1]}();
             }
         }
 
