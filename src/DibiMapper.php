@@ -245,13 +245,11 @@ class DibiMapper extends \UniMapper\Mapper
     {
         $values = $this->unmapEntity($query->entity);
         if (empty($values)) {
-            throw new MapperException("Entity has no mapped values!");
+            throw new MapperException("Nothing to insert");
         }
 
         $this->connection->insert($this->getResource($query->entityReflection), $values)->execute();
-        if ($query->returnPrimaryValue) {
-            return $this->connection->getInsertId();
-        }
+        return $this->connection->getInsertId();
     }
 
     /**
