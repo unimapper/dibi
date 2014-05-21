@@ -32,7 +32,7 @@ class DibiMapper extends \UniMapper\Mapper
         $this->connection = $connection;
     }
 
-    protected function mapValue(Reflection\Entity\Property $property, $data)
+    public function mapValue(Reflection\Entity\Property $property, $data)
     {
         if ($data instanceof \DibiDateTime) {
             return new \DateTime($data);
@@ -74,7 +74,7 @@ class DibiMapper extends \UniMapper\Mapper
         }
     }
 
-    public function convertCondition(array $condition)
+    private function convertCondition(array $condition)
     {
         if (is_array($condition[0])) {
             // Nested conditions
@@ -148,7 +148,7 @@ class DibiMapper extends \UniMapper\Mapper
         }
 
         $fluent = $this->connection->delete($this->getResource($query->entityReflection));
-        $this->setConditions($fluent, $this->translateConditions($query->entityReflection, $query->conditions));
+        $this->setConditions($fluent, $this->unmapConditions($query->entityReflection, $query->conditions));
         return $fluent->execute();
     }
 
@@ -171,7 +171,7 @@ class DibiMapper extends \UniMapper\Mapper
         }
 
         $condition = array($primaryProperty->getName(), "=", $query->primaryValue, "AND");
-        $this->setConditions($fluent, $this->translateConditions($query->entityReflection, array($condition)));
+        $this->setConditions($fluent, $this->unmapConditions($query->entityReflection, array($condition)));
 
         $result = $fluent->fetch();
 
@@ -196,7 +196,7 @@ class DibiMapper extends \UniMapper\Mapper
             ->select("[" . implode("],[", $selection) . "]")
             ->from("%n", $this->getResource($query->entityReflection));
 
-        $this->setConditions($fluent, $this->translateConditions($query->entityReflection, $query->conditions));
+        $this->setConditions($fluent, $this->unmapConditions($query->entityReflection, $query->conditions));
 
         if ($query->limit > 0) {
             $fluent->limit("%i", $query->limit);
@@ -230,48 +230,36 @@ class DibiMapper extends \UniMapper\Mapper
     public function count(\UniMapper\Query\Count $query)
     {
         $fluent = $this->connection->select("*")->from("%n", $this->getResource($query->entityReflection));
-        $this->setConditions($fluent, $this->translateConditions($query->entityReflection, $query->conditions));
+        $this->setConditions($fluent, $this->unmapConditions($query->entityReflection, $query->conditions));
         return $fluent->count();
     }
 
     /**
      * Insert
      *
-     * @param \UniMapper\Query\Insert $query Query
+     * @param string $resource
+     * @param array  $values
      *
-     * @return integer|null
+     * @return mixed Primary value
      */
-    public function insert(\UniMapper\Query\Insert $query)
+    public function insert($resource, array $values)
     {
-        $values = $this->unmapEntity($query->entity);
-        if (empty($values)) {
-            throw new MapperException("Nothing to insert");
-        }
-
-        $this->connection->insert($this->getResource($query->entityReflection), $values)->execute();
+        $this->connection->insert($resource, $values)->execute();
         return $this->connection->getInsertId();
     }
 
     /**
-     * Update
+     * Update data by set of conditions
      *
-     * @param \UniMapper\Query\Update $query Query
-     *
-     * @return boolean
+     * @param string $resource
+     * @param array  $values
+     * @param array  $conditions
      */
-    public function update(\UniMapper\Query\Update $query)
+    public function update($resource, array $values, array $conditions)
     {
-        $values = $this->unmapEntity($query->entity);
-        if (empty($values)) {
-            return false;
-        }
-
-        $fluent = $this->connection->update(
-            $this->getResource($query->entityReflection),
-            $this->unmapEntity($query->entity)
-        );
-        $this->setConditions($fluent, $this->translateConditions($query->entityReflection, $query->conditions));
-        return (bool) $fluent->execute();
+        $fluent = $this->connection->update($resource, $values);
+        $this->setConditions($fluent, $conditions);
+        $fluent->execute();
     }
 
 }
