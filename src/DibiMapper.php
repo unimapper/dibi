@@ -134,22 +134,16 @@ class DibiMapper extends \UniMapper\Mapper
     }
 
     /**
-     * Delete
+     * Delete record by some conditions
      *
-     * @param \UniMapper\Query\Delete $query Query
-     *
-     * @return mixed
+     * @param string $resource
+     * @param array  $conditions
      */
-    public function delete(\UniMapper\Query\Delete $query)
+    public function delete($resource, array $conditions)
     {
-        // @todo this should prevent deleting all data, but it can be solved after primarProperty implement in better way
-        if (count($query->conditions) === 0) {
-            throw new MapperException("At least one condition must be specified!");
-        }
-
-        $fluent = $this->connection->delete($this->getResource($query->entityReflection));
-        $this->setConditions($fluent, $this->unmapConditions($query->entityReflection, $query->conditions));
-        return $fluent->execute();
+        $fluent = $this->connection->delete($resource);
+        $this->setConditions($fluent, $conditions);
+        $fluent->execute();
     }
 
     /**
