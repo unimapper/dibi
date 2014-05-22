@@ -43,17 +43,23 @@ class DibiMapper extends \UniMapper\Mapper
     /**
      * Custom query
      *
-     * @param \UniMapper\Query\Custom $query Query
+     * @param string $resource
+     * @param string $query
+     * @param string $method
+     * @param string $contentType
+     * @param mixed  $data
      *
      * @return mixed
+     *
+     * @throws \UniMapper\Exceptions\MapperException
      */
-    public function custom(\UniMapper\Query\Custom $query)
+    public function custom($resource, $query, $method, $contentType, $data)
     {
-        if ($query->method === \UniMapper\Query\Custom::METHOD_RAW) {
-            return $this->connection->query($query->query)->fetchAll();
+        if ($method === \UniMapper\Query\Custom::METHOD_RAW) {
+            return $this->connection->query($query)->fetchAll();
         }
 
-        throw new MapperException("Not implemented!");
+        throw new MapperException("Undefined custom method '" . $method . "' used!");
     }
 
     private function setConditions(\DibiFluent $fluent, array $conditions)
@@ -147,84 +153,58 @@ class DibiMapper extends \UniMapper\Mapper
     }
 
     /**
-     * Find single record
+     * Find single record identified by primary value
      *
-     * @param \UniMapper\Query\FindOne $query Query
+     * @param string $resource
+     * @param mixed  $primaryName
+     * @param mixed  $primaryValue
+     *
+     * @return mixed
      */
-    public function findOne(\UniMapper\Query\FindOne $query)
+    public function findOne($resource, $primaryName, $primaryValue)
     {
-        $selection = $this->getSelection($query->entityReflection);
-
-        $fluent = $this->connection
-            ->select("[" . implode("],[", $selection) . "]")
-            ->from("%n", $this->getResource($query->entityReflection));
-
-        $primaryProperty = $query->entityReflection->getPrimaryProperty();
-        if ($primaryProperty === null) {
-            throw new MapperException("Primary property is not set in  " .  $query->entityReflection->getClassName() . "!");
-        }
-
-        $condition = array($primaryProperty->getName(), "=", $query->primaryValue, "AND");
-        $this->setConditions($fluent, $this->unmapConditions($query->entityReflection, array($condition)));
-
-        $result = $fluent->fetch();
-
-        if ($result) {
-            return $this->mapEntity($query->entityReflection->getClassName(), $result);
-        }
-        return false;
+        return $this->connection->select("*")
+            ->from("%n", $resource)
+            ->where("%n = %s", $primaryName, $primaryValue) // @todo
+            ->fetch();
     }
 
     /**
-     * FindAll
+     * Find records
      *
-     * @param \UniMapper\Query\FindAll $query FindAll Query
+     * @param string  $resource
+     * @param array   $selection
+     * @param array   $conditions
+     * @param array   $orderBy
+     * @param integer $limit
+     * @param integer $offset
      *
-     * @return \UniMapper\EntityCollection|false
+     * @return array|false
      */
-    public function findAll(\UniMapper\Query\FindAll $query)
+    public function findAll($resource, array $selection, array $conditions, array $orderBy, $limit = 0, $offset = 0)
     {
-        $selection = $this->getSelection($query->entityReflection, $query->selection);
+        $fluent = $this->connection->select("[" . implode("],[", $selection) . "]")
+            ->from("%n", $resource)
+            ->limit("%i", $limit)
+            ->offset("%i", $offset);
 
-        $fluent = $this->connection
-            ->select("[" . implode("],[", $selection) . "]")
-            ->from("%n", $this->getResource($query->entityReflection));
+        $this->setConditions($fluent, $conditions);
 
-        $this->setConditions($fluent, $this->unmapConditions($query->entityReflection, $query->conditions));
-
-        if ($query->limit > 0) {
-            $fluent->limit("%i", $query->limit);
-        }
-
-        if ($query->offset > 0) {
-            $fluent->offset("%i", $query->offset);
-        }
-
-        if (count($query->orderBy) > 0) {
-
-            foreach ($query->orderBy as $orderBy) {
-
-                // Map property name to defined mapping definition
-                $properties = $query->entityReflection->getProperties();
-                $column = $properties[$orderBy[0]]->getMappedName();
-
-                // Map property
-                $fluent->orderBy($column)->{$orderBy[1]}();
-            }
+        foreach ($orderBy as $name => $direction) {
+            $fluent->orderBy($name)->{$direction}();
         }
 
         $result = $fluent->fetchAll();
         if (count($result) === 0) {
             return false;
         }
-
-        return $this->mapCollection($query->entityReflection->getClassName(), $result);
+        return $result;
     }
 
-    public function count(\UniMapper\Query\Count $query)
+    public function count($resource, array $conditions)
     {
-        $fluent = $this->connection->select("*")->from("%n", $this->getResource($query->entityReflection));
-        $this->setConditions($fluent, $this->unmapConditions($query->entityReflection, $query->conditions));
+        $fluent = $this->connection->select("*")->from("%n", $resource);
+        $this->setConditions($fluent, $conditions);
         return $fluent->count();
     }
 
