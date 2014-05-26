@@ -183,10 +183,15 @@ class DibiMapper extends \UniMapper\Mapper
      */
     public function findAll($resource, array $selection, array $conditions, array $orderBy, $limit = 0, $offset = 0)
     {
-        $fluent = $this->connection->select("[" . implode("],[", $selection) . "]")
-            ->from("%n", $resource)
-            ->limit("%i", $limit)
-            ->offset("%i", $offset);
+        $fluent = $this->connection->select("[" . implode("],[", $selection) . "]")->from("%n", $resource);
+
+        if ($limit !== null) {
+            $fluent->limit("%i", $limit);
+        }
+
+        if ($offset !== null) {
+            $fluent->offset("%i", $offset);
+        }
 
         $this->setConditions($fluent, $conditions);
 
