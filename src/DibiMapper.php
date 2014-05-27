@@ -189,7 +189,7 @@ class DibiMapper extends \UniMapper\Mapper
             $fluent->limit("%i", $limit);
         }
 
-        if ($offset !== null) {
+        if (!empty($offset)) {
             $fluent->offset("%i", $offset);
         }
 
