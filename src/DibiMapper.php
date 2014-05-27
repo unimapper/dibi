@@ -185,7 +185,7 @@ class DibiMapper extends \UniMapper\Mapper
     {
         $fluent = $this->connection->select("[" . implode("],[", $selection) . "]")->from("%n", $resource);
 
-        if ($limit !== null) {
+        if (!empty($limit)) {
             $fluent->limit("%i", $limit);
         }
 
