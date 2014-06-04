@@ -3,6 +3,8 @@
 namespace UniMapper\Mapper;
 
 use UniMapper\Exceptions\MapperException,
+    UniMapper\Reflection\Entity\Property\Association\BelongsToMany,
+    UniMapper\Reflection\Entity\Property\Association\HasMany,
     UniMapper\Reflection;
 
 /**
@@ -158,10 +160,11 @@ class DibiMapper extends \UniMapper\Mapper
      * @param string $resource
      * @param mixed  $primaryName
      * @param mixed  $primaryValue
+     * @param array  $associations
      *
      * @return mixed
      */
-    public function findOne($resource, $primaryName, $primaryValue)
+    public function findOne($resource, $primaryName, $primaryValue, array $associations = [])
     {
         return $this->connection->select("*")
             ->from("%n", $resource)
@@ -178,10 +181,11 @@ class DibiMapper extends \UniMapper\Mapper
      * @param array   $orderBy
      * @param integer $limit
      * @param integer $offset
+     * @param array   $associations
      *
      * @return array|false
      */
-    public function findAll($resource, array $selection, array $conditions, array $orderBy, $limit = 0, $offset = 0)
+    public function findAll($resource, array $selection = [], array $conditions = [], array $orderBy = [], $limit = 0, $offset = 0, array $associations = [])
     {
         $fluent = $this->connection->select("[" . implode("],[", $selection) . "]")->from("%n", $resource);
 
@@ -203,6 +207,67 @@ class DibiMapper extends \UniMapper\Mapper
         if (count($result) === 0) {
             return false;
         }
+
+        // Associations
+        $associated = [];
+        foreach ($associations as $propertyName => $association) {
+
+            $primaryKeys = [];
+            foreach ($result as $row) {
+                $primaryKeys[] = $row->{$association->getPrimaryKey()};
+            }
+
+            if ($association instanceof BelongsToMany) {
+                $associated[$propertyName] = $this->belongsToMany($association, $primaryKeys);
+            } elseif ($association instanceof HasMany) {
+                $associated[$propertyName] = $this->hasMany($association, $primaryKeys);
+            } else {
+                throw new MapperException("Unsupported association " . get_class($association) . "!");
+            }
+        }
+
+        foreach ($result as $index => $item) {
+
+            foreach ($associated as $propertyName => $associatedResult) {
+
+                $primaryValue = $item->{$association->getPrimaryKey()}; // potencial future bug, association wrong?
+                if (isset($associatedResult[$primaryValue])) {
+                    $item[$propertyName] = $associatedResult[$primaryValue];
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    private function belongsToMany(BelongsToMany $association, array $primaryKeys)
+    {
+        return $this->connection->select("*")
+                ->from("%n", $association->getTargetResource())
+                ->where("%n IN %l", $association->getForeignKey(), $primaryKeys)
+                ->fetchAssoc($association->getForeignKey() . ",#");
+    }
+
+    private function hasMany(HasMany $association, array $primaryKeys)
+    {
+        $joinResult = $this->connection->select("%n,%n", $association->getJoinKey(), $association->getReferenceKey())
+            ->from("%n", $association->getJoinResource())
+            ->where("%n IN %l", $association->getJoinKey(), $primaryKeys)
+            ->fetchAssoc($association->getReferenceKey() . "," . $association->getJoinKey());
+
+        $targetResult = $this->connection->select("*")
+            ->from("%n", $association->getTargetResource())
+            ->where("%n IN %l", $association->getForeignKey(), array_keys($joinResult))
+            ->fetchAssoc($association->getForeignKey());
+
+        $result = [];
+        foreach ($joinResult as $targetKey => $join) {
+
+            foreach ($join as $originKey => $data) {
+                $result[$originKey][] = $targetResult[$targetKey];
+            }
+        }
+
         return $result;
     }
 
