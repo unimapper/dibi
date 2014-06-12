@@ -241,4 +241,25 @@ class DibiMapper extends \UniMapper\Mapper
         $fluent->execute();
     }
 
+    /**
+     * Update single record
+     *
+     * @param string $resource
+     * @param string $primaryName
+     * @param mixed  $primaryValue
+     * @param array  $values
+     *
+     * @return mixed Primary value
+     */
+    public function updateOne($resource, $primaryName, $primaryValue, array $values)
+    {
+        $type = gettype($primaryValue);
+        if ($type === "object") {
+            $type = get_class($type);
+        }
+        $this->connection->update($resource, $values)
+            ->where("%n = " . $this->modificators[$type], $primaryName, $primaryValue)
+            ->execute();
+    }
+
 }
