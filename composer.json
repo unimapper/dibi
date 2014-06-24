@@ -16,7 +16,7 @@
     },
     "require-dev": {
         "bauer01/unimapper": "@dev",
-        "nette/tester": "~1.0",
+        "nette/tester": "~1.2.0",
         "janmarek/mockista": "@dev"
     },
     "autoload": {
