@@ -1,17 +1,12 @@
 <?php
 
-namespace UniMapper\Mapper;
+namespace UniMapper\Dibi;
 
-use UniMapper\Exceptions\MapperException,
+use UniMapper\Exceptions\AdapterException,
     UniMapper\Reflection\Entity\Property\Association\BelongsToMany,
-    UniMapper\Reflection\Entity\Property\Association\HasMany,
-    UniMapper\Reflection;
+    UniMapper\Reflection\Entity\Property\Association\HasMany;
 
-/**
- * Dibi mapper can be generally used to communicate between repository and
- * dibi database abstract layer.
- */
-class DibiMapper extends \UniMapper\Mapper
+class Adapter extends \UniMapper\Adapter
 {
 
     /** @var \DibiConnection $connection Dibi connection */
@@ -30,16 +25,8 @@ class DibiMapper extends \UniMapper\Mapper
 
     public function __construct($name, \DibiConnection $connection)
     {
-        parent::__construct($name);
+        parent::__construct($name, new Mapping);
         $this->connection = $connection;
-    }
-
-    public function mapValue(Reflection\Entity\Property $property, $data)
-    {
-        if ($data instanceof \DibiDateTime) {
-            return new \DateTime($data);
-        }
-        return parent::mapValue($property, $data);
     }
 
     /**
@@ -53,7 +40,7 @@ class DibiMapper extends \UniMapper\Mapper
      *
      * @return mixed
      *
-     * @throws \UniMapper\Exceptions\MapperException
+     * @throws \UniMapper\Exceptions\AdapterException
      */
     public function custom($resource, $query, $method, $contentType, $data)
     {
@@ -61,7 +48,7 @@ class DibiMapper extends \UniMapper\Mapper
             return $this->connection->query($query)->fetchAll();
         }
 
-        throw new MapperException("Undefined custom method '" . $method . "' used!");
+        throw new AdapterException("Undefined custom method '" . $method . "' used!");
     }
 
     private function setConditions(\DibiFluent $fluent, array $conditions)
@@ -117,7 +104,7 @@ class DibiMapper extends \UniMapper\Mapper
                 $type = get_class($type);
             }
             if (!isset($this->modificators[$type])) {
-                throw new MapperException("Unsupported value type " . $type . " given!");
+                throw new AdapterException("Unsupported value type " . $type . " given!");
             }
 
             // Get operator
@@ -222,7 +209,7 @@ class DibiMapper extends \UniMapper\Mapper
             } elseif ($association instanceof HasMany) {
                 $associated[$propertyName] = $this->hasMany($association, $primaryKeys);
             } else {
-                throw new MapperException("Unsupported association " . get_class($association) . "!");
+                throw new AdapterException("Unsupported association " . get_class($association) . "!");
             }
         }
 
