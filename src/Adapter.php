@@ -30,25 +30,13 @@ class Adapter extends \UniMapper\Adapter
     }
 
     /**
-     * Custom query
+     * Raw query
      *
-     * @param string $resource
-     * @param string $query
-     * @param string $method
-     * @param string $contentType
-     * @param mixed  $data
-     *
-     * @return mixed
-     *
-     * @throws \UniMapper\Exceptions\AdapterException
+     * @return \DibiConnection
      */
-    public function custom($resource, $query, $method, $contentType, $data)
+    public function getConnection()
     {
-        if ($method === \UniMapper\Query\Custom::METHOD_RAW) {
-            return $this->connection->query($query)->fetchAll();
-        }
-
-        throw new AdapterException("Undefined custom method '" . $method . "' used!");
+        return $this->connection;
     }
 
     private function setConditions(\DibiFluent $fluent, array $conditions)
@@ -69,7 +57,7 @@ class Adapter extends \UniMapper\Adapter
         }
     }
 
-    private function convertCondition(array $condition)
+    public function convertCondition(array $condition)
     {
         if (is_array($condition[0])) {
             // Nested conditions
@@ -134,7 +122,7 @@ class Adapter extends \UniMapper\Adapter
      * @param string $resource
      * @param array  $conditions
      */
-    public function delete($resource, array $conditions)
+    public function delete($resource, $conditions)
     {
         $fluent = $this->connection->delete($resource);
         $this->setConditions($fluent, $conditions);
@@ -172,7 +160,7 @@ class Adapter extends \UniMapper\Adapter
      *
      * @return array|false
      */
-    public function findAll($resource, array $selection = [], array $conditions = [], array $orderBy = [], $limit = 0, $offset = 0, array $associations = [])
+    public function findAll($resource, $selection = null, $conditions = null, $orderBy = null, $limit = 0, $offset = 0, array $associations = [])
     {
         $fluent = $this->connection->select("[" . implode("],[", $selection) . "]")->from("%n", $resource);
 
@@ -217,7 +205,7 @@ class Adapter extends \UniMapper\Adapter
 
             foreach ($associated as $propertyName => $associatedResult) {
 
-                $primaryValue = $item->{$association->getPrimaryKey()}; // potencial future bug, association wrong?
+                $primaryValue = $item->{$association->getPrimaryKey()}; // @todo potencial future bug, association wrong?
                 if (isset($associatedResult[$primaryValue])) {
                     $item[$propertyName] = $associatedResult[$primaryValue];
                 }
@@ -258,7 +246,7 @@ class Adapter extends \UniMapper\Adapter
         return $result;
     }
 
-    public function count($resource, array $conditions)
+    public function count($resource, $conditions)
     {
         $fluent = $this->connection->select("*")->from("%n", $resource);
         $this->setConditions($fluent, $conditions);
@@ -286,7 +274,7 @@ class Adapter extends \UniMapper\Adapter
      * @param array  $values
      * @param array  $conditions
      */
-    public function update($resource, array $values, array $conditions)
+    public function update($resource, array $values, $conditions = null)
     {
         $fluent = $this->connection->update($resource, $values);
         $this->setConditions($fluent, $conditions);
