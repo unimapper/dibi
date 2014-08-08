@@ -12,5 +12,3 @@ if (!$loader) {
 Tester\Environment::setup();
 
 date_default_timezone_set('Europe/Prague');
-
-$mockista = new \Mockista\Registry;
