@@ -39,7 +39,7 @@ class Adapter extends \UniMapper\Adapter
         return $this->connection;
     }
 
-    protected function setConditions(\DibiFluent $fluent, array $conditions)
+    protected function setConditions(\DibiConnection $fluent, array $conditions)
     {
         $i = 0;
         foreach ($conditions as $condition) {
@@ -178,7 +178,7 @@ class Adapter extends \UniMapper\Adapter
             $fluent->orderBy($name)->{$direction}();
         }
 
-        $result = $fluent->fetchAll();
+        $result = $fluent->fetchAll(null);
         if (count($result) === 0) {
             return false;
         }

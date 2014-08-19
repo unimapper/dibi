@@ -68,6 +68,28 @@ class AdapterTest extends Tester\TestCase
         );
     }
 
+    public function testFind()
+    {
+        $this->connectionMock->shouldReceive("select")->with("[col1],[col2]")->andReturnSelf();
+        $this->connectionMock->shouldReceive("from")->with("%n", "table")->andReturnSelf();
+        $this->connectionMock->shouldReceive("limit")->with("%i", 10)->andReturnSelf();
+        $this->connectionMock->shouldReceive("offset")->with("%i", 20)->andReturnSelf();
+        $this->connectionMock->shouldReceive("where")->with("%n %sql %i", "col1", "=", 1)->andReturnSelf();
+        $this->connectionMock->shouldReceive("orderBy")->with("col1")->andReturnSelf();
+        $this->connectionMock->shouldReceive("desc")->andReturnSelf();
+        $this->connectionMock->shouldReceive("fetchAll")->andReturn([]);
+
+        $this->adapter->find(
+            "table",
+            ["col1", "col2"],
+            [["col1", "=", 1, "AND"]],
+            ["col1" => "desc"],
+            10,
+            20,
+            []
+        );
+    }
+
 }
 
 $testCase = new AdapterTest;
