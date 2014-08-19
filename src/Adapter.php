@@ -39,7 +39,7 @@ class Adapter extends \UniMapper\Adapter
         return $this->connection;
     }
 
-    private function setConditions(\DibiFluent $fluent, array $conditions)
+    protected function setConditions(\DibiFluent $fluent, array $conditions)
     {
         $i = 0;
         foreach ($conditions as $condition) {
@@ -193,9 +193,9 @@ class Adapter extends \UniMapper\Adapter
             }
 
             if ($association instanceof BelongsToMany) {
-                $associated[$propertyName] = $this->belongsToMany($association, $primaryKeys);
+                $associated[$propertyName] = $this->_belongsToMany($association, $primaryKeys);
             } elseif ($association instanceof HasMany) {
-                $associated[$propertyName] = $this->hasMany($association, $primaryKeys);
+                $associated[$propertyName] = $this->_hasMany($association, $primaryKeys);
             } else {
                 throw new AdapterException("Unsupported association " . get_class($association) . "!");
             }
@@ -215,15 +215,15 @@ class Adapter extends \UniMapper\Adapter
         return $result;
     }
 
-    private function belongsToMany(BelongsToMany $association, array $primaryKeys)
+    private function _belongsToMany(BelongsToMany $association, array $primaryKeys)
     {
         return $this->connection->select("*")
-                ->from("%n", $association->getTargetResource())
-                ->where("%n IN %l", $association->getForeignKey(), $primaryKeys)
-                ->fetchAssoc($association->getForeignKey() . ",#");
+            ->from("%n", $association->getTargetResource())
+            ->where("%n IN %l", $association->getForeignKey(), $primaryKeys)
+            ->fetchAssoc($association->getForeignKey() . ",#");
     }
 
-    private function hasMany(HasMany $association, array $primaryKeys)
+    private function _hasMany(HasMany $association, array $primaryKeys)
     {
         $joinResult = $this->connection->select("%n,%n", $association->getJoinKey(), $association->getReferenceKey())
             ->from("%n", $association->getJoinResource())
