@@ -39,7 +39,7 @@ class Adapter extends \UniMapper\Adapter
         return $this->connection;
     }
 
-    protected function setConditions(\DibiConnection $fluent, array $conditions)
+    protected function setConditions($fluent, array $conditions)
     {
         $i = 0;
         foreach ($conditions as $condition) {
