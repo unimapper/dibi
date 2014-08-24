@@ -230,6 +230,10 @@ class Adapter extends \UniMapper\Adapter
             ->where("%n IN %l", $association->getJoinKey(), $primaryKeys)
             ->fetchAssoc($association->getReferenceKey() . "," . $association->getJoinKey());
 
+        if (empty($joinResult)) {
+            return [];
+        }
+
         $targetResult = $this->connection->select("*")
             ->from("%n", $association->getTargetResource())
             ->where("%n IN %l", $association->getForeignKey(), array_keys($joinResult))
