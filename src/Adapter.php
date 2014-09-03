@@ -141,10 +141,36 @@ class Adapter extends \UniMapper\Adapter
      */
     public function findOne($resource, $primaryName, $primaryValue, array $associations = [])
     {
-        return $this->connection->select("*")
+        $result = $this->connection->select("*")
             ->from("%n", $resource)
             ->where("%n = %s", $primaryName, $primaryValue) // @todo
             ->fetch();
+
+        if (!$result) {
+            return false;
+        }
+
+        // Associations
+        $associated = [];
+        foreach ($associations as $propertyName => $association) {
+
+            if ($association instanceof BelongsToMany) {
+                $associated[$propertyName] = $this->_belongsToMany($association, [$primaryValue]);
+            } elseif ($association instanceof HasMany) {
+                $associated[$propertyName] = $this->_hasMany($association, [$primaryValue]);
+            } else {
+                throw new AdapterException("Unsupported association " . get_class($association) . "!");
+            }
+        }
+
+        foreach ($associated as $propertyName => $associatedItem) {
+
+            if (isset($associatedItem[$primaryValue])) {
+                $result[$propertyName] = $associatedItem[$primaryValue];
+            }
+        }
+
+        return $result;
     }
 
     /**
