@@ -188,7 +188,13 @@ class Adapter extends \UniMapper\Adapter
      */
     public function find($resource, $selection = null, $conditions = null, $orderBy = null, $limit = 0, $offset = 0, array $associations = [])
     {
-        $fluent = $this->connection->select("[" . implode("],[", $selection) . "]")->from("%n", $resource);
+        if ($selection) {
+            $selection = "[" . implode("],[", $selection) . "]";
+        } else {
+            $selection = "*";
+        }
+
+        $fluent = $this->connection->select($selection)->from("%n", $resource);
 
         if (!empty($limit)) {
             $fluent->limit("%i", $limit);
