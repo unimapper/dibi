@@ -200,8 +200,10 @@ class Adapter extends \UniMapper\Adapter
 
         $this->setConditions($fluent, $conditions);
 
-        foreach ($orderBy as $name => $direction) {
-            $fluent->orderBy($name)->{$direction}();
+        if ($orderBy) {
+            foreach ($orderBy as $name => $direction) {
+                $fluent->orderBy($name)->{$direction}();
+            }
         }
 
         $result = $fluent->fetchAll(null);
