@@ -4,6 +4,7 @@ namespace UniMapper\Dibi;
 
 use UniMapper\Exception\AdapterException,
     UniMapper\Reflection\Entity\Property\Association\BelongsToMany,
+    UniMapper\Reflection\Entity\Property\Association\HasOne,
     UniMapper\Reflection\Entity\Property\Association\HasMany;
 
 class Adapter extends \UniMapper\Adapter
@@ -156,6 +157,8 @@ class Adapter extends \UniMapper\Adapter
 
             if ($association instanceof BelongsToMany) {
                 $associated[$propertyName] = $this->_belongsToMany($association, [$primaryValue]);
+            } elseif ($association instanceof HasOne) {
+                $associated[$propertyName] = $this->_hasOne($association, [$primaryValue]);
             } elseif ($association instanceof HasMany) {
                 $associated[$propertyName] = $this->_hasMany($association, [$primaryValue]);
             } else {
@@ -189,6 +192,14 @@ class Adapter extends \UniMapper\Adapter
     public function find($resource, $selection = null, $conditions = null, $orderBy = null, $limit = 0, $offset = 0, array $associations = [])
     {
         if ($selection) {
+
+            foreach ($associations as $association) {
+
+                $refKey = $association->getReferenceKey();
+                if ($association instanceof HasOne && !in_array($refKey, $selection, true)) {
+                    $selection[] = $refKey;
+                }
+            }
             $selection = "[" . implode("],[", $selection) . "]";
         } else {
             $selection = "*";
@@ -228,6 +239,13 @@ class Adapter extends \UniMapper\Adapter
 
             if ($association instanceof BelongsToMany) {
                 $associated[$propertyName] = $this->_belongsToMany($association, $primaryKeys);
+            } elseif ($association instanceof HasOne) {
+
+                $primaryKeys = [];
+                foreach ($result as $row) {
+                    $primaryKeys[] = $row->{$association->getReferenceKey()};
+                }
+                $associated[$propertyName] = $this->_hasOne($association, $primaryKeys);
             } elseif ($association instanceof HasMany) {
                 $associated[$propertyName] = $this->_hasMany($association, $primaryKeys);
             } else {
@@ -255,6 +273,18 @@ class Adapter extends \UniMapper\Adapter
             ->from("%n", $association->getTargetResource())
             ->where("%n IN %l", $association->getForeignKey(), $primaryKeys)
             ->fetchAssoc($association->getForeignKey() . ",#");
+    }
+
+    private function _hasOne(HasOne $association, array $primaryKeys)
+    {
+        $primaryColumn = $association->getTargetReflection()
+            ->getPrimaryProperty()
+            ->getMappedName();
+
+        return $this->connection->select("*")
+            ->from("%n", $association->getTargetResource())
+            ->where("%n IN %l", $primaryColumn, $primaryKeys)
+            ->fetchAssoc($primaryColumn);
     }
 
     private function _hasMany(HasMany $association, array $primaryKeys)
