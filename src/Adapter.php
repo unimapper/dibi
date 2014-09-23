@@ -2,7 +2,7 @@
 
 namespace UniMapper\Dibi;
 
-use UniMapper\Exceptions\AdapterException,
+use UniMapper\Exception\AdapterException,
     UniMapper\Reflection\Entity\Property\Association\BelongsToMany,
     UniMapper\Reflection\Entity\Property\Association\HasMany;
 
