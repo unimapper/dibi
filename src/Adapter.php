@@ -3,9 +3,9 @@
 namespace UniMapper\Dibi;
 
 use UniMapper\Exception\AdapterException,
-    UniMapper\Reflection\Entity\Property\Association\BelongsToMany,
-    UniMapper\Reflection\Entity\Property\Association\HasOne,
-    UniMapper\Reflection\Entity\Property\Association\HasMany;
+    UniMapper\Reflection\Entity\Property\Association\OneToMany,
+    UniMapper\Reflection\Entity\Property\Association\ManyToOne,
+    UniMapper\Reflection\Entity\Property\Association\ManyToMany;
 
 class Adapter extends \UniMapper\Adapter
 {
@@ -155,12 +155,12 @@ class Adapter extends \UniMapper\Adapter
         $associated = [];
         foreach ($associations as $propertyName => $association) {
 
-            if ($association instanceof BelongsToMany) {
-                $associated[$propertyName] = $this->_belongsToMany($association, [$primaryValue]);
-            } elseif ($association instanceof HasOne) {
-                $associated[$propertyName] = $this->_hasOne($association, [$primaryValue]);
-            } elseif ($association instanceof HasMany) {
-                $associated[$propertyName] = $this->_hasMany($association, [$primaryValue]);
+            if ($association instanceof OneToMany) {
+                $associated[$propertyName] = $this->_oneToMany($association, [$primaryValue]);
+            } elseif ($association instanceof ManyToOne) {
+                $associated[$propertyName] = $this->_manyToOne($association, [$primaryValue]);
+            } elseif ($association instanceof ManyToMany) {
+                $associated[$propertyName] = $this->_manyToMany($association, [$primaryValue]);
             } else {
                 throw new AdapterException("Unsupported association " . get_class($association) . "!");
             }
@@ -196,7 +196,7 @@ class Adapter extends \UniMapper\Adapter
             foreach ($associations as $association) {
 
                 $refKey = $association->getReferenceKey();
-                if ($association instanceof HasOne && !in_array($refKey, $selection, true)) {
+                if ($association instanceof ManyToOne && !in_array($refKey, $selection, true)) {
                     $selection[] = $refKey;
                 }
             }
@@ -237,17 +237,17 @@ class Adapter extends \UniMapper\Adapter
                 $primaryKeys[] = $row->{$association->getPrimaryKey()};
             }
 
-            if ($association instanceof BelongsToMany) {
-                $associated[$propertyName] = $this->_belongsToMany($association, $primaryKeys);
-            } elseif ($association instanceof HasOne) {
+            if ($association instanceof OneToMany) {
+                $associated[$propertyName] = $this->_oneToMany($association, $primaryKeys);
+            } elseif ($association instanceof ManyToOne) {
 
                 $primaryKeys = [];
                 foreach ($result as $row) {
                     $primaryKeys[] = $row->{$association->getReferenceKey()};
                 }
-                $associated[$propertyName] = $this->_hasOne($association, $primaryKeys);
-            } elseif ($association instanceof HasMany) {
-                $associated[$propertyName] = $this->_hasMany($association, $primaryKeys);
+                $associated[$propertyName] = $this->_manyToOne($association, $primaryKeys);
+            } elseif ($association instanceof ManyToMany) {
+                $associated[$propertyName] = $this->_manyToMany($association, $primaryKeys);
             } else {
                 throw new AdapterException("Unsupported association " . get_class($association) . "!");
             }
@@ -267,7 +267,7 @@ class Adapter extends \UniMapper\Adapter
         return $result;
     }
 
-    private function _belongsToMany(BelongsToMany $association, array $primaryKeys)
+    private function _oneToMany(OneToMany $association, array $primaryKeys)
     {
         return $this->connection->select("*")
             ->from("%n", $association->getTargetResource())
@@ -275,7 +275,7 @@ class Adapter extends \UniMapper\Adapter
             ->fetchAssoc($association->getForeignKey() . ",#");
     }
 
-    private function _hasOne(HasOne $association, array $primaryKeys)
+    private function _manyToOne(ManyToOne $association, array $primaryKeys)
     {
         $primaryColumn = $association->getTargetReflection()
             ->getPrimaryProperty()
@@ -287,7 +287,7 @@ class Adapter extends \UniMapper\Adapter
             ->fetchAssoc($primaryColumn);
     }
 
-    private function _hasMany(HasMany $association, array $primaryKeys)
+    private function _manyToMany(ManyToMany $association, array $primaryKeys)
     {
         $joinResult = $this->connection->select("%n,%n", $association->getJoinKey(), $association->getReferenceKey())
             ->from("%n", $association->getJoinResource())
