@@ -2,10 +2,9 @@
 
 namespace UniMapper\Dibi;
 
-use UniMapper\Exception\AdapterException,
-    UniMapper\Reflection\Entity\Property\Association\OneToMany,
-    UniMapper\Reflection\Entity\Property\Association\ManyToOne,
-    UniMapper\Reflection\Entity\Property\Association\ManyToMany;
+use UniMapper\Adapter\IQuery,
+    UniMapper\Exception\AdapterException,
+    UniMapper\Association;
 
 class Adapter extends \UniMapper\Adapter
 {
@@ -13,261 +12,153 @@ class Adapter extends \UniMapper\Adapter
     /** @var \DibiConnection $connection Dibi connection */
     protected $connection;
 
-    /** @var array $modificators Dibi modificators */
-    protected $modificators = array(
-        "boolean" => "%b",
-        "integer" => "%i",
-        "string" => "%s",
-        "NULL" => "NULL",
-        "DateTime" => "%t",
-        "array" => "%in",
-        "double" => "%f"
-    );
-
     public function __construct($name, \DibiConnection $connection)
     {
         parent::__construct($name, new Mapping);
         $this->connection = $connection;
     }
 
-    /**
-     * Raw query
-     *
-     * @return \DibiConnection
-     */
     public function getConnection()
     {
         return $this->connection;
     }
 
-    protected function setConditions($fluent, array $conditions)
+    public function createDelete($table)
     {
-        $i = 0;
-        foreach ($conditions as $condition) {
-
-            list($joiner, $query, $modificators) = $this->convertCondition($condition);
-
-            array_unshift($modificators, $query);
-
-            if ($joiner === "AND" || $i === 0) {
-                call_user_func_array(array($fluent, "where"), $modificators);
-            } else {
-                call_user_func_array(array($fluent, "or"), $modificators);
-            }
-            $i++;
-        }
+        $query = new Query($this->connection->delete($table));
+        $query->resultCallback = function (Query $query) {
+            return $query->fluent->execute();
+        };
+        return $query;
     }
 
-    public function convertCondition(array $condition)
+    public function createDeleteOne($table, $column, $value)
     {
-        if (is_array($condition[0])) {
-            // Nested conditions
+        $query = new Query(
+            $this->connection->delete($table)->where("%n = %s", $column, $value)
+        );
+        $query->resultCallback = function (Query $query) {
+            return $query->fluent->execute();
+        };
+        return $query;
+    }
 
-            list($nestedConditions, $joiner) = $condition;
+    public function createFindOne($table, $column, $value)
+    {
+        $query = new Query(
+            $this->connection->select("*")
+                ->from("%n", $table)
+                ->where("%n = %s", $column, $value) // @todo
+        );
 
-            $i = 0;
-            $query = "";
-            $modificators = array();
-            foreach ($nestedConditions as $nestedCondition) {
-                list($conditionJoiner, $conditionQuery, $conditionModificators) = $this->convertCondition($nestedCondition);
-                if ($i > 0) {
-                    $query .= " " . $conditionJoiner . " ";
+        $query->resultCallback = function (Query $query) use ($value) {
+
+            $result = $query->fluent->fetch();
+            if (!$result) {
+                return false;
+            }
+
+            // Associations
+            foreach ($query->associations as $association) {
+
+                if ($association instanceof Association\OneToMany) {
+                    $associated = $this->_oneToMany($association, [$value]);
+                } elseif ($association instanceof Association\ManyToOne) {
+                    $associated = $this->_manyToOne($association, [$value]);
+                } elseif ($association instanceof Association\ManyToMany) {
+                    $associated = $this->_manyToMany($association, [$value]);
+                } else {
+                    throw new AdapterException("Unsupported association " . get_class($association) . "!");
                 }
-                $query .= $conditionQuery;
-                $modificators = array_merge($modificators, $conditionModificators);
-                $i++;
-            }
-            return array(
-                $joiner,
-                "(" . $query . ")",
-                $modificators
-            );
-        } else {
-            // Simple condition
 
-            list($columnName, $operator, $value, $joiner) = $condition;
-
-            // Convert data type definition to dibi modificator
-            $type = gettype($value);
-            if ($type === "object") {
-                $type = get_class($type);
-            }
-            if (!isset($this->modificators[$type])) {
-                throw new AdapterException("Unsupported value type " . $type . " given!");
-            }
-
-            // Get operator
-            if ($operator === "COMPARE") {
-                if ($this->connection->getDriver() instanceof \DibiPostgreDriver) {
-                    $operator = "ILIKE";
-                } elseif ($this->connection->getDriver() instanceof \DibiMySqlDriver) {
-                    $operator = "LIKE";
+                if (isset($associated[$value])) {
+                    $result[$association->getPropertyName()] = $associated[$value];
                 }
             }
 
-            return array(
-                $joiner,
-                "%n %sql " . $this->modificators[$type],
-                array(
-                    $columnName,
-                    $operator,
-                    $value
-                )
-            );
-        }
+            return $result;
+        };
+
+        return $query;
     }
 
-    /**
-     * Delete record by some conditions
-     *
-     * @param string $resource
-     * @param array  $conditions
-     */
-    public function delete($resource, $conditions)
+    public function createFind($table, array $selection = [], array $orderBy = [], $limit = 0, $offset = 0)
     {
-        $fluent = $this->connection->delete($resource);
-        $this->setConditions($fluent, $conditions);
-        $fluent->execute();
-    }
-
-    /**
-     * Find single record identified by primary value
-     *
-     * @param string $resource
-     * @param mixed  $primaryName
-     * @param mixed  $primaryValue
-     * @param array  $associations
-     *
-     * @return mixed
-     */
-    public function findOne($resource, $primaryName, $primaryValue, array $associations = [])
-    {
-        $result = $this->connection->select("*")
-            ->from("%n", $resource)
-            ->where("%n = %s", $primaryName, $primaryValue) // @todo
-            ->fetch();
-
-        if (!$result) {
-            return false;
-        }
-
-        // Associations
-        $associated = [];
-        foreach ($associations as $propertyName => $association) {
-
-            if ($association instanceof OneToMany) {
-                $associated[$propertyName] = $this->_oneToMany($association, [$primaryValue]);
-            } elseif ($association instanceof ManyToOne) {
-                $associated[$propertyName] = $this->_manyToOne($association, [$primaryValue]);
-            } elseif ($association instanceof ManyToMany) {
-                $associated[$propertyName] = $this->_manyToMany($association, [$primaryValue]);
-            } else {
-                throw new AdapterException("Unsupported association " . get_class($association) . "!");
-            }
-        }
-
-        foreach ($associated as $propertyName => $associatedItem) {
-
-            if (isset($associatedItem[$primaryValue])) {
-                $result[$propertyName] = $associatedItem[$primaryValue];
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Find records
-     *
-     * @param string  $resource
-     * @param array   $selection
-     * @param array   $conditions
-     * @param array   $orderBy
-     * @param integer $limit
-     * @param integer $offset
-     * @param array   $associations
-     *
-     * @return array|false
-     */
-    public function find($resource, $selection = null, $conditions = null, $orderBy = null, $limit = 0, $offset = 0, array $associations = [])
-    {
-        if ($selection) {
-
-            foreach ($associations as $association) {
-
-                $refKey = $association->getReferenceKey();
-                if ($association instanceof ManyToOne && !in_array($refKey, $selection, true)) {
-                    $selection[] = $refKey;
-                }
-            }
-            $selection = "[" . implode("],[", $selection) . "]";
-        } else {
+        if (empty($selection)) {
             $selection = "*";
+        } else {
+            $selection = "[" . implode("],[", $selection) . "]";
         }
 
-        $fluent = $this->connection->select($selection)->from("%n", $resource);
+        $query = new Query($this->connection->select($selection)->from("%n", $table));
 
         if (!empty($limit)) {
-            $fluent->limit("%i", $limit);
+            $query->fluent->limit("%i", $limit);
         }
 
         if (!empty($offset)) {
-            $fluent->offset("%i", $offset);
+            $query->fluent->offset("%i", $offset);
         }
-
-        $this->setConditions($fluent, $conditions);
 
         if ($orderBy) {
             foreach ($orderBy as $name => $direction) {
-                $fluent->orderBy($name)->{$direction}();
+                $query->fluent->orderBy($name)->{$direction}();
             }
         }
 
-        $result = $fluent->fetchAll(null);
-        if (count($result) === 0) {
-            return false;
-        }
+        $query->resultCallback = function (Query $query) {
 
-        // Associations
-        $associated = [];
-        foreach ($associations as $propertyName => $association) {
+            // Select
+            foreach ($query->associations as $association) {
 
-            $primaryKeys = [];
-            foreach ($result as $row) {
-                $primaryKeys[] = $row->{$association->getPrimaryKey()};
+                if ($association instanceof Association\ManyToOne) {
+                   $query->fluent->select($association->getReferenceKey());
+                }
             }
 
-            if ($association instanceof OneToMany) {
-                $associated[$propertyName] = $this->_oneToMany($association, $primaryKeys);
-            } elseif ($association instanceof ManyToOne) {
+            $result = $query->fluent->fetchAll(null);
+            if (count($result) === 0) {
+                return false;
+            }
+
+            // Associations
+            foreach ($query->associations as $association) {
 
                 $primaryKeys = [];
                 foreach ($result as $row) {
-                    $primaryKeys[] = $row->{$association->getReferenceKey()};
+                    $primaryKeys[] = $row->{$association->getPrimaryKey()};
                 }
-                $associated[$propertyName] = $this->_manyToOne($association, $primaryKeys);
-            } elseif ($association instanceof ManyToMany) {
-                $associated[$propertyName] = $this->_manyToMany($association, $primaryKeys);
-            } else {
-                throw new AdapterException("Unsupported association " . get_class($association) . "!");
-            }
-        }
 
-        foreach ($result as $index => $item) {
+                if ($association instanceof Association\OneToMany) {
+                    $associated = $this->_oneToMany($association, $primaryKeys);
+                } elseif ($association instanceof Association\ManyToOne) {
 
-            foreach ($associated as $propertyName => $associatedResult) {
+                    $primaryKeys = [];
+                    foreach ($result as $row) {
+                        $primaryKeys[] = $row->{$association->getReferenceKey()};
+                    }
+                    $associated = $this->_manyToOne($association, $primaryKeys);
+                } elseif ($association instanceof Association\ManyToMany) {
+                    $associated = $this->_manyToMany($association, $primaryKeys);
+                } else {
+                    throw new AdapterException("Unsupported association " . get_class($association) . "!");
+                }
 
-                $primaryValue = $item->{$association->getPrimaryKey()}; // @todo potencial future bug, association wrong?
-                if (isset($associatedResult[$primaryValue])) {
-                    $item[$propertyName] = $associatedResult[$primaryValue];
+                foreach ($result as $index => $item) {
+
+                    if (isset($associated[$item->{$association->getPrimaryKey()}])) {
+                        $result[$index][$association->getPropertyName()] = $associated[$item->{$association->getPrimaryKey()}];
+                    }
                 }
             }
-        }
 
-        return $result;
+            return $result;
+        };
+
+        return $query;
     }
 
-    private function _oneToMany(OneToMany $association, array $primaryKeys)
+    private function _oneToMany(Association\OneToMany $association, array $primaryKeys)
     {
         return $this->connection->select("*")
             ->from("%n", $association->getTargetResource())
@@ -275,7 +166,7 @@ class Adapter extends \UniMapper\Adapter
             ->fetchAssoc($association->getForeignKey() . ",#");
     }
 
-    private function _manyToOne(ManyToOne $association, array $primaryKeys)
+    private function _manyToOne(Association\ManyToOne $association, array $primaryKeys)
     {
         $primaryColumn = $association->getTargetReflection()
             ->getPrimaryProperty()
@@ -287,7 +178,7 @@ class Adapter extends \UniMapper\Adapter
             ->fetchAssoc($primaryColumn);
     }
 
-    private function _manyToMany(ManyToMany $association, array $primaryKeys)
+    private function _manyToMany(Association\ManyToMany $association, array $primaryKeys)
     {
         $joinResult = $this->connection->select("%n,%n", $association->getJoinKey(), $association->getReferenceKey())
             ->from("%n", $association->getJoinResource())
@@ -314,60 +205,78 @@ class Adapter extends \UniMapper\Adapter
         return $result;
     }
 
-    public function count($resource, $conditions)
-    {
-        $fluent = $this->connection->select("*")->from("%n", $resource);
-        $this->setConditions($fluent, $conditions);
-        return $fluent->count();
-    }
+    public function createModifyManyToMany(
+        Association\ManyToMany $association,
+        $primaryValue,
+        array $refKeys,
+        $action = self::ASSOC_ADD
+    ) {
+        if ($action === self::ASSOC_ADD) {
 
-    /**
-     * Insert
-     *
-     * @param string $resource
-     * @param array  $values
-     *
-     * @return mixed Primary value
-     */
-    public function insert($resource, array $values)
-    {
-        $this->connection->insert($resource, $values)->execute();
-        return $this->connection->getInsertId();
-    }
+            $fluent = $this->connection->insert(
+                $association->getJoinResource(),
+                [
+                    $association->getJoinKey() => array_fill(0, count($refKeys), $primaryValue),
+                    $association->getReferenceKey() => $refKeys
+                ]
+            );
+        } else {
 
-    /**
-     * Update data by set of conditions
-     *
-     * @param string $resource
-     * @param array  $values
-     * @param array  $conditions
-     */
-    public function update($resource, array $values, $conditions = null)
-    {
-        $fluent = $this->connection->update($resource, $values);
-        $this->setConditions($fluent, $conditions);
-        $fluent->execute();
-    }
-
-    /**
-     * Update single record
-     *
-     * @param string $resource
-     * @param string $primaryName
-     * @param mixed  $primaryValue
-     * @param array  $values
-     *
-     * @return mixed Primary value
-     */
-    public function updateOne($resource, $primaryName, $primaryValue, array $values)
-    {
-        $type = gettype($primaryValue);
-        if ($type === "object") {
-            $type = get_class($type);
+            $fluent = $this->connection->delete($association->getJoinResource())
+                ->where("%n = %s", $association->getJoinKey(), $primaryValue) // @todo %s modificator
+                ->and("%n IN %l", $association->getReferenceKey(), $refKeys);
         }
-        $this->connection->update($resource, $values)
-            ->where("%n = " . $this->modificators[$type], $primaryName, $primaryValue)
-            ->execute();
+
+        $query = new Query($fluent);
+        $query->resultCallback = function (Query $query) {
+            return $query->execute();
+        };
+
+        return $query;
+    }
+
+    public function createCount($table)
+    {
+        $query = new Query($this->connection->select("*")->from("%n", $table));
+        $query->resultCallback = function (Query $query) {
+            return $query->fluent->count();
+        };
+        return $query;
+    }
+
+    public function createInsert($table, array $values)
+    {
+        $query = new Query($this->connection->insert($table, $values));
+        $query->resultCallback = function (Query $query) {
+            return $query->fluent->execute()->getInsertId();
+        };
+        return $query;
+    }
+
+    public function createUpdate($table, array $values)
+    {
+        $query = new Query($this->connection->update($table, $values));
+        $query->resultCallback = function (Query $query) {
+            return $query->fluent->execute();
+        };
+        return $query;
+    }
+
+    public function createUpdateOne($table, $primaryColumn, $primaryValue, array $values)
+    {
+        $type = is_object($primaryValue) ? get_class($primaryValue) : gettype($primaryValue);
+        $query = new Query($this->connection->update($table, $values));
+        $query->fluent->where("%n = " . $query->getModificators()[$type], $primaryColumn, $primaryValue);
+        $query->resultCallback = function (Query $query) {
+            return $query->execute();
+        };
+        return $query;
+    }
+
+    public function execute(IQuery $query)
+    {
+        $callback = $query->resultCallback;
+        return $callback($query);
     }
 
 }
