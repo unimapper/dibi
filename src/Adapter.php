@@ -112,7 +112,7 @@ class Adapter extends \UniMapper\Adapter
             foreach ($query->associations as $association) {
 
                 if ($association instanceof Association\ManyToOne) {
-                   $query->fluent->select($association->getReferenceKey());
+                    $query->fluent->select($association->getReferenceKey());
                 }
             }
 
