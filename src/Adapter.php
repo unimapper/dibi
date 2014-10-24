@@ -9,7 +9,7 @@ use UniMapper\Adapter\IQuery,
 class Adapter extends \UniMapper\Adapter
 {
 
-    /** @var \DibiConnection $connection Dibi connection */
+    /** @var \DibiConnection $connection Connection to database */
     protected $connection;
 
     public function __construct($name, \DibiConnection $connection)
@@ -27,7 +27,9 @@ class Adapter extends \UniMapper\Adapter
     {
         $query = new Query($this->connection->delete($table));
         $query->resultCallback = function (Query $query) {
-            return $query->fluent->execute();
+
+            $query->fluent->execute();
+            return $this->connection->getAffectedRows();
         };
         return $query;
     }
@@ -38,7 +40,9 @@ class Adapter extends \UniMapper\Adapter
             $this->connection->delete($table)->where("%n = %s", $column, $value)
         );
         $query->resultCallback = function (Query $query) {
-            return $query->fluent->execute();
+
+            $query->fluent->execute();
+            return $this->connection->getAffectedRows() === 0 ? false : true;
         };
         return $query;
     }
@@ -248,7 +252,9 @@ class Adapter extends \UniMapper\Adapter
     {
         $query = new Query($this->connection->insert($table, $values));
         $query->resultCallback = function (Query $query) {
-            return $query->fluent->execute()->getInsertId();
+
+            $query->fluent->execute();
+            return $this->connection->getInsertId();
         };
         return $query;
     }
@@ -257,7 +263,9 @@ class Adapter extends \UniMapper\Adapter
     {
         $query = new Query($this->connection->update($table, $values));
         $query->resultCallback = function (Query $query) {
-            return $query->fluent->execute();
+
+            $query->fluent->execute();
+            return $this->connection->getAffectedRows();
         };
         return $query;
     }
@@ -265,10 +273,13 @@ class Adapter extends \UniMapper\Adapter
     public function createUpdateOne($table, $primaryColumn, $primaryValue, array $values)
     {
         $type = is_object($primaryValue) ? get_class($primaryValue) : gettype($primaryValue);
+
         $query = new Query($this->connection->update($table, $values));
         $query->fluent->where("%n = " . $query->getModificators()[$type], $primaryColumn, $primaryValue);
         $query->resultCallback = function (Query $query) {
-            return $query->execute();
+
+            $query->execute();
+            return $this->connection->getAffectedRows() === 0 ? false : true;
         };
         return $query;
     }
