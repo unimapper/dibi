@@ -233,7 +233,7 @@ class Adapter extends \UniMapper\Adapter
 
         $query = new Query($fluent);
         $query->resultCallback = function (Query $query) {
-            return $query->execute();
+            return $query->fluent->execute();
         };
 
         return $query;
@@ -278,7 +278,7 @@ class Adapter extends \UniMapper\Adapter
         $query->fluent->where("%n = " . $query->getModificators()[$type], $primaryColumn, $primaryValue);
         $query->resultCallback = function (Query $query) {
 
-            $query->execute();
+            $query->fluent->execute();
             return $this->connection->getAffectedRows() === 0 ? false : true;
         };
         return $query;
