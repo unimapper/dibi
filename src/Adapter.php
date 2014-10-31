@@ -174,7 +174,7 @@ class Adapter extends \UniMapper\Adapter
     {
         $primaryColumn = $association->getTargetReflection()
             ->getPrimaryProperty()
-            ->getMappedName();
+            ->getName(true);
 
         return $this->connection->select("*")
             ->from("%n", $association->getTargetResource())
