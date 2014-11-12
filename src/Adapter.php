@@ -68,7 +68,9 @@ class Adapter extends \UniMapper\Adapter
                 if ($association instanceof Association\OneToMany) {
                     $associated = $this->_oneToMany($association, [$value]);
                 } elseif ($association instanceof Association\ManyToOne) {
-                    $associated = $this->_manyToOne($association, [$result->{$association->getReferenceKey()}]);
+
+                    $value = $result->{$association->getReferenceKey()};
+                    $associated = $this->_manyToOne($association, [$value]);
                 } elseif ($association instanceof Association\ManyToMany) {
                     $associated = $this->_manyToMany($association, [$value]);
                 } else {
@@ -128,18 +130,22 @@ class Adapter extends \UniMapper\Adapter
             // Associations
             foreach ($query->associations as $association) {
 
+                $assocKey = $association->getPrimaryKey();
+
                 $primaryKeys = [];
                 foreach ($result as $row) {
-                    $primaryKeys[] = $row->{$association->getPrimaryKey()};
+                    $primaryKeys[] = $row->{$assocKey};
                 }
 
                 if ($association instanceof Association\OneToMany) {
                     $associated = $this->_oneToMany($association, $primaryKeys);
                 } elseif ($association instanceof Association\ManyToOne) {
 
+                    $assocKey = $association->getReferenceKey();
+
                     $primaryKeys = [];
                     foreach ($result as $row) {
-                        $primaryKeys[] = $row->{$association->getReferenceKey()};
+                        $primaryKeys[] = $row->{$assocKey};
                     }
                     $associated = $this->_manyToOne($association, $primaryKeys);
                 } elseif ($association instanceof Association\ManyToMany) {
@@ -150,8 +156,8 @@ class Adapter extends \UniMapper\Adapter
 
                 foreach ($result as $index => $item) {
 
-                    if (isset($associated[$item->{$association->getPrimaryKey()}])) {
-                        $result[$index][$association->getPropertyName()] = $associated[$item->{$association->getPrimaryKey()}];
+                    if (isset($associated[$item->{$assocKey}])) {
+                        $result[$index][$association->getPropertyName()] = $associated[$item->{$assocKey}];
                     }
                 }
             }
