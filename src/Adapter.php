@@ -68,7 +68,7 @@ class Adapter extends \UniMapper\Adapter
                 if ($association instanceof Association\OneToMany) {
                     $associated = $this->_oneToMany($association, [$value]);
                 } elseif ($association instanceof Association\ManyToOne) {
-                    $associated = $this->_manyToOne($association, [$value]);
+                    $associated = $this->_manyToOne($association, [$result->{$association->getReferenceKey()}]);
                 } elseif ($association instanceof Association\ManyToMany) {
                     $associated = $this->_manyToMany($association, [$value]);
                 } else {
