@@ -12,10 +12,10 @@ class Adapter extends \UniMapper\Adapter
     /** @var \DibiConnection $connection Connection to database */
     protected $connection;
 
-    public function __construct($name, \DibiConnection $connection)
+    public function __construct($name, array $config)
     {
-        parent::__construct($name, new Mapping);
-        $this->connection = $connection;
+        parent::__construct($name, $config);
+        $this->connection = new \DibiConnection($config);
     }
 
     public function getConnection()
@@ -294,6 +294,11 @@ class Adapter extends \UniMapper\Adapter
     {
         $callback = $query->resultCallback;
         return $callback($query);
+    }
+
+    public function createMapper()
+    {
+        return new Adapter\Mapper;
     }
 
 }

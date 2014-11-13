@@ -1,10 +1,10 @@
 <?php
 
-namespace UniMapper\Dibi;
+namespace UniMapper\Dibi\Adapter;
 
 use UniMapper\Reflection;
 
-class Mapping extends \UniMapper\Mapping
+class Mapper extends \UniMapper\Adapter\Mapper
 {
 
     public function mapValue(Reflection\Entity\Property $property, $data)
