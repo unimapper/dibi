@@ -6,21 +6,24 @@ use UniMapper\Adapter\IQuery,
     UniMapper\Exception\AdapterException,
     UniMapper\Association;
 
-class Adapter extends \UniMapper\Adapter
+class Adapter implements \UniMapper\Adapter\IAdapter
 {
 
     /** @var \DibiConnection $connection Connection to database */
     protected $connection;
 
-    public function __construct($name, array $config)
+    /** @var Adapter\Mapper */
+    protected $mapper;
+
+    public function __construct(array $config)
     {
-        parent::__construct($name, $config);
         $this->connection = new \DibiConnection($config);
+        $this->mapper = new Adapter\Mapper;
     }
 
-    public function getConnection()
+    public function query()
     {
-        return $this->connection;
+        return call_user_func_array([$this->connection, "query"], func_get_args());
     }
 
     public function createDelete($table)
@@ -296,9 +299,9 @@ class Adapter extends \UniMapper\Adapter
         return $callback($query);
     }
 
-    public function createMapper()
+    public function getMapper()
     {
-        return new Adapter\Mapper;
+        return $this->mapper;
     }
 
 }
