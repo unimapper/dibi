@@ -21,9 +21,9 @@ class Adapter implements \UniMapper\Adapter\IAdapter
         $this->mapper = new Adapter\Mapper;
     }
 
-    public function getConnection()
+    public function query()
     {
-        return $this->connection;
+        return call_user_func_array([$this->connection, "query"], func_get_args());
     }
 
     public function createDelete($table)
