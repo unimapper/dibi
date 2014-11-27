@@ -6,7 +6,7 @@ use UniMapper\Adapter\IQuery,
     UniMapper\Exception\AdapterException,
     UniMapper\Association;
 
-class Adapter implements \UniMapper\Adapter\IAdapter
+class Adapter extends \UniMapper\Adapter
 {
 
     /** @var \DibiConnection $connection Connection to database */
@@ -50,7 +50,7 @@ class Adapter implements \UniMapper\Adapter\IAdapter
         return $query;
     }
 
-    public function createFindOne($table, $column, $value)
+    public function createSelectOne($table, $column, $value)
     {
         $query = new Query(
             $this->connection->select("*")
@@ -91,7 +91,7 @@ class Adapter implements \UniMapper\Adapter\IAdapter
         return $query;
     }
 
-    public function createFind($table, array $selection = [], array $orderBy = [], $limit = 0, $offset = 0)
+    public function createSelect($table, array $selection = [], array $orderBy = [], $limit = 0, $offset = 0)
     {
         if (empty($selection)) {
             $selection = "*";
@@ -293,7 +293,7 @@ class Adapter implements \UniMapper\Adapter\IAdapter
         return $query;
     }
 
-    public function execute(IQuery $query)
+    public function onExecute(IQuery $query)
     {
         $callback = $query->resultCallback;
         return $callback($query);
