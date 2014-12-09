@@ -88,7 +88,7 @@ class Query implements \UniMapper\Adapter\IQuery
             // Convert data type definition to dibi modificator
             $type = gettype($value);
             if ($type === "object") {
-                $type = get_class($type);
+                $type = get_class($value);
             }
             if (!isset($this->modificators[$type])) {
                 throw new \Exception("Unsupported value type " . $type . " given!");
