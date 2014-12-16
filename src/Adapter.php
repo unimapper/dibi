@@ -4,7 +4,7 @@ namespace UniMapper\Dibi;
 
 use UniMapper\Adapter\IQuery,
     UniMapper\Exception\AdapterException,
-    UniMapper\Association;
+    UniMapper\Reflection\Association;
 
 class Adapter extends \UniMapper\Adapter
 {
