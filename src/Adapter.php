@@ -65,14 +65,16 @@ class Adapter extends \UniMapper\Adapter
             // Associations
             foreach ($query->associations as $association) {
 
+                $value = $result->{$association->getKey()};
+
                 if ($association instanceof Association\OneToMany) {
                     $associated = $this->_oneToMany($association, [$value]);
                 } elseif ($association instanceof Association\ManyToOne) {
-
-                    $value = $result->{$association->getReferenceKey()};
                     $associated = $this->_manyToOne($association, [$value]);
                 } elseif ($association instanceof Association\ManyToMany) {
                     $associated = $this->_manyToMany($association, [$value]);
+                } elseif ($association instanceof Association\OneToOne) {
+                    $associated = $this->_oneToOne($association, [$value]);
                 } else {
                     throw new AdapterException("Unsupported association " . get_class($association) . "!");
                 }
@@ -130,34 +132,27 @@ class Adapter extends \UniMapper\Adapter
             // Associations
             foreach ($query->associations as $association) {
 
-                $assocKey = $association->getPrimaryKey();
-
                 $primaryKeys = [];
                 foreach ($result as $row) {
-                    $primaryKeys[] = $row->{$assocKey};
+                    $primaryKeys[] = $row->{$association->getKey()};
                 }
 
                 if ($association instanceof Association\OneToMany) {
                     $associated = $this->_oneToMany($association, $primaryKeys);
                 } elseif ($association instanceof Association\ManyToOne) {
-
-                    $assocKey = $association->getReferenceKey();
-
-                    $primaryKeys = [];
-                    foreach ($result as $row) {
-                        $primaryKeys[] = $row->{$assocKey};
-                    }
                     $associated = $this->_manyToOne($association, $primaryKeys);
                 } elseif ($association instanceof Association\ManyToMany) {
                     $associated = $this->_manyToMany($association, $primaryKeys);
+                } elseif ($association instanceof Association\OneToOne) {
+                    $associated = $this->_oneToOne($association, $primaryKeys);
                 } else {
                     throw new AdapterException("Unsupported association " . get_class($association) . "!");
                 }
 
                 foreach ($result as $index => $item) {
 
-                    if (isset($associated[$item->{$assocKey}])) {
-                        $result[$index][$association->getPropertyName()] = $associated[$item->{$assocKey}];
+                    if (isset($associated[$item->{$association->getKey()}])) {
+                        $result[$index][$association->getPropertyName()] = $associated[$item->{$association->getKey()}];
                     }
                 }
             }
@@ -174,6 +169,14 @@ class Adapter extends \UniMapper\Adapter
             ->from("%n", $association->getTargetResource())
             ->where("%n IN %l", $association->getForeignKey(), $primaryKeys)
             ->fetchAssoc($association->getForeignKey() . ",#");
+    }
+
+    private function _oneToOne(Association\OneToOne $association, array $primaryKeys)
+    {
+        return $this->connection->select("*")
+            ->from("%n", $association->getTargetResource())
+            ->where("%n IN %l", $association->getTargetPrimaryKey(), $primaryKeys)
+            ->fetchAssoc($association->getTargetPrimaryKey() . ",#");
     }
 
     private function _manyToOne(Association\ManyToOne $association, array $primaryKeys)
