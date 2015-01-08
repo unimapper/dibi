@@ -17,7 +17,7 @@ class Query implements \UniMapper\Adapter\IQuery
         "boolean" => "%b",
         "integer" => "%i",
         "string" => "%s",
-        "NULL" => "NULL",
+        "NULL" => "%sN",
         "DateTime" => "%t",
         "array" => "%in",
         "double" => "%f"
