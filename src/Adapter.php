@@ -167,7 +167,7 @@ class Adapter extends \UniMapper\Adapter
     {
         return $this->connection->select("*")
             ->from("%n", $association->getTargetResource())
-            ->where("%n IN %l", $association->getReferenced(), $primaryKeys)
+            ->where("%n IN %l", $association->getReferencedKey(), $primaryKeys)
             ->fetchAssoc($association->getReferencedKey() . ",#");
     }
 
