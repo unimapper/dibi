@@ -4,7 +4,7 @@ namespace UniMapper\Dibi;
 
 use UniMapper\Adapter\IQuery,
     UniMapper\Exception\AdapterException,
-    UniMapper\Reflection\Association;
+    UniMapper\Association;
 
 class Adapter extends \UniMapper\Adapter
 {
@@ -120,7 +120,7 @@ class Adapter extends \UniMapper\Adapter
             foreach ($query->associations as $association) {
 
                 if ($association instanceof Association\ManyToOne) {
-                    $query->fluent->select($association->getReferenceKey());
+                    $query->fluent->select($association->getReferencingKey()); // @todo maybe useless
                 }
             }
 
@@ -167,8 +167,8 @@ class Adapter extends \UniMapper\Adapter
     {
         return $this->connection->select("*")
             ->from("%n", $association->getTargetResource())
-            ->where("%n IN %l", $association->getForeignKey(), $primaryKeys)
-            ->fetchAssoc($association->getForeignKey() . ",#");
+            ->where("%n IN %l", $association->getReferenced(), $primaryKeys)
+            ->fetchAssoc($association->getReferencedKey() . ",#");
     }
 
     private function _oneToOne(Association\OneToOne $association, array $primaryKeys)
@@ -193,10 +193,10 @@ class Adapter extends \UniMapper\Adapter
 
     private function _manyToMany(Association\ManyToMany $association, array $primaryKeys)
     {
-        $joinResult = $this->connection->select("%n,%n", $association->getJoinKey(), $association->getReferenceKey())
+        $joinResult = $this->connection->select("%n,%n", $association->getJoinKey(), $association->getReferencingKey())
             ->from("%n", $association->getJoinResource())
             ->where("%n IN %l", $association->getJoinKey(), $primaryKeys)
-            ->fetchAssoc($association->getReferenceKey() . "," . $association->getJoinKey());
+            ->fetchAssoc($association->getReferencingKey() . "," . $association->getJoinKey());
 
         if (empty($joinResult)) {
             return [];
@@ -204,8 +204,8 @@ class Adapter extends \UniMapper\Adapter
 
         $targetResult = $this->connection->select("*")
             ->from("%n", $association->getTargetResource())
-            ->where("%n IN %l", $association->getForeignKey(), array_keys($joinResult))
-            ->fetchAssoc($association->getForeignKey());
+            ->where("%n IN %l", $association->getTargetPrimaryKey(), array_keys($joinResult))
+            ->fetchAssoc($association->getTargetPrimaryKey());
 
         $result = [];
         foreach ($joinResult as $targetKey => $join) {
@@ -230,14 +230,14 @@ class Adapter extends \UniMapper\Adapter
                 $association->getJoinResource(),
                 [
                     $association->getJoinKey() => array_fill(0, count($refKeys), $primaryValue),
-                    $association->getReferenceKey() => $refKeys
+                    $association->getReferencingKey() => $refKeys
                 ]
             );
         } else {
 
             $fluent = $this->connection->delete($association->getJoinResource())
                 ->where("%n = %s", $association->getJoinKey(), $primaryValue) // @todo %s modificator
-                ->and("%n IN %l", $association->getReferenceKey(), $refKeys);
+                ->and("%n IN %l", $association->getReferencingKey(), $refKeys);
         }
 
         $query = new Query($fluent);
