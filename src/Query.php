@@ -95,12 +95,8 @@ class Query implements \UniMapper\Adapter\IQuery
             }
 
             // Get operator
-            if ($operator === "COMPARE") {
-                if ($this->fluent->connection->getDriver() instanceof \DibiPostgreDriver) {
-                    $operator = "ILIKE";
-                } elseif ($this->fluent->connection->getDriver() instanceof \DibiMySqlDriver) {
-                    $operator = "LIKE";
-                }
+            if ($operator === "LIKE" && $this->fluent->connection->getDriver() instanceof \DibiPostgreDriver) {
+                $operator = "ILIKE";
             }
 
             return array(
