@@ -3,7 +3,7 @@
 namespace UniMapper\Dibi;
 
 use UniMapper\Adapter\IQuery,
-    UniMapper\Exception\AdapterException,
+    UniMapper\Exception\InvalidArgumentException,
     UniMapper\Association;
 
 class Adapter extends \UniMapper\Adapter
@@ -76,7 +76,10 @@ class Adapter extends \UniMapper\Adapter
                 } elseif ($association instanceof Association\OneToOne) {
                     $associated = $this->_oneToOne($association, [$value]);
                 } else {
-                    throw new AdapterException("Unsupported association " . get_class($association) . "!");
+                    throw new InvalidArgumentException(
+                        "Unsupported association " . get_class($association) . "!",
+                        $association
+                    );
                 }
 
                 if (isset($associated[$value])) {
@@ -146,7 +149,10 @@ class Adapter extends \UniMapper\Adapter
                 } elseif ($association instanceof Association\OneToOne) {
                     $associated = $this->_oneToOne($association, $primaryKeys);
                 } else {
-                    throw new AdapterException("Unsupported association " . get_class($association) . "!");
+                    throw new InvalidArgumentException(
+                        "Unsupported association " . get_class($association) . "!",
+                        $association
+                    );
                 }
 
                 foreach ($result as $index => $item) {
