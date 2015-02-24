@@ -18,6 +18,16 @@ class Adapter extends \UniMapper\Adapter
         $this->connection = new \DibiConnection($config);
     }
 
+    /**
+     * Return's dibi connection
+     *
+     * @return \DibiConnection
+     */
+    public function getConnection()
+    {
+        return $this->connection;
+    }
+
     public function query()
     {
         return call_user_func_array([$this->connection, "query"], func_get_args());
