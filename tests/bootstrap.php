@@ -6,9 +6,6 @@ if (!$loader) {
     exit(1);
 }
 
-// @todo
-//$loader->addPsr4("UniMapper\Tests\Fixtures\\", __DIR__ . "/fixtures");
-
 Tester\Environment::setup();
 
 date_default_timezone_set('Europe/Prague');
