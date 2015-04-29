@@ -76,6 +76,9 @@ class Adapter extends \UniMapper\Adapter
             foreach ($query->associations as $association) {
 
                 $value = $result->{$association->getKey()};
+                if (empty($value)) {
+                    continue;
+                }
 
                 if ($association instanceof Association\OneToMany) {
                     $associated = $this->_oneToMany($association, [$value]);
@@ -147,7 +150,16 @@ class Adapter extends \UniMapper\Adapter
 
                 $primaryKeys = [];
                 foreach ($result as $row) {
-                    $primaryKeys[] = $row->{$association->getKey()};
+
+                    if (!empty($row->{$association->getKey()})
+                        && !in_array($row, $primaryKeys, true)
+                    ) {
+                        $primaryKeys[] = $row->{$association->getKey()};
+                    }
+                }
+
+                if (empty($primaryKeys)) {
+                    continue;
                 }
 
                 if ($association instanceof Association\OneToMany) {
