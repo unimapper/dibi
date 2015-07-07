@@ -285,7 +285,7 @@ class Adapter extends \UniMapper\Adapter
         return $query;
     }
 
-    public function createInsert($table, array $values)
+    public function createInsert($table, array $values, $primaryName = null)
     {
         $query = new Query($this->connection->insert($table, $values));
         $query->resultCallback = function (Query $query) {
