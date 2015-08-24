@@ -19,6 +19,7 @@ class Query implements \UniMapper\Adapter\IQuery
         "string" => "%s",
         "NULL" => "%sN",
         "DateTime" => "%t",
+        "Date" => "%d",
         "array" => "%in",
         "double" => "%f"
     );
