@@ -2,6 +2,8 @@
 
 namespace UniMapper\Dibi;
 
+use UniMapper\Entity\Filter;
+
 class Query implements \UniMapper\Adapter\IQuery
 {
 
@@ -13,16 +15,16 @@ class Query implements \UniMapper\Adapter\IQuery
     public $resultCallback;
 
     /** @var array $modificators Dibi modificators */
-    private $modificators = array(
+    private $modificators = [
         "boolean" => "%b",
         "integer" => "%i",
         "string" => "%s",
         "NULL" => "%sN",
         "DateTime" => "%t",
-        "Date" => "%d",
+        "UniMapper\Dibi\Date" => "%d",
         "array" => "%in",
         "double" => "%f"
-    );
+    ];
 
     public function __construct(\DibiFluent $fluent)
     {
@@ -34,21 +36,10 @@ class Query implements \UniMapper\Adapter\IQuery
         return $this->modificators;
     }
 
-    public function setConditions(array $conditions)
+    public function setFilter(array $filter)
     {
-        $i = 0;
-        foreach ($conditions as $condition) {
-
-            list($joiner, $query, $modificators) = $this->convertCondition($condition);
-
-            array_unshift($modificators, $query);
-
-            if ($joiner === "AND" || $i === 0) {
-                call_user_func_array([$this->fluent, "where"], $modificators);
-            } else {
-                call_user_func_array([$this->fluent, "or"], $modificators);
-            }
-            $i++;
+        if ($filter) {
+            $this->fluent->where("%and", $this->convertFilter($filter));
         }
     }
 
@@ -57,59 +48,81 @@ class Query implements \UniMapper\Adapter\IQuery
         $this->associations += $associations;
     }
 
-    public function convertCondition(array $condition)
+    public function convertFilter(array $filter)
     {
-        if (is_array($condition[0])) {
-            // Nested conditions
+        $result = [];
 
-            list($nestedConditions, $joiner) = $condition;
+        if (Filter::isGroup($filter)) {
+            // Filter group
 
-            $i = 0;
-            $query = "";
-            $modificators = array();
-            foreach ($nestedConditions as $nestedCondition) {
-                list($conditionJoiner, $conditionQuery, $conditionModificators) = $this->convertCondition($nestedCondition);
-                if ($i > 0) {
-                    $query .= " " . $conditionJoiner . " ";
-                }
-                $query .= $conditionQuery;
-                $modificators = array_merge($modificators, $conditionModificators);
-                $i++;
+            foreach ($filter as $modifier => $item) {
+                $result[] = [
+                    $modifier === Filter::_OR ? "%or" : "%and",
+                    $this->convertFilter($item)
+                ];
             }
-            return array(
-                $joiner,
-                "(" . $query . ")",
-                $modificators
-            );
         } else {
-            // Simple condition
+            // Filter item
 
-            list($columnName, $operator, $value, $joiner) = $condition;
+            foreach ($filter as $name => $item) {
 
-            // Convert data type definition to dibi modificator
-            $type = gettype($value);
-            if ($type === "object") {
-                $type = get_class($value);
+                foreach ($item as $operator => $value) {
+
+                    // Convert data type definition to modificator
+                    $type = gettype($value);
+                    if ($type === "object") {
+                        $type = get_class($value);
+                    }
+                    if (!isset($this->modificators[$type])) {
+                        throw new \Exception("Unsupported value type " . $type . " given!");
+                    }
+                    $modificator = $this->modificators[$type];
+
+                    if ($operator === Filter::START) {
+
+                        $operator = "LIKE";
+                        $modificator = "%like~";
+                    } elseif ($operator === Filter::END) {
+
+                        $operator = "LIKE";
+                        $modificator = "%~like";
+                    } elseif ($operator === Filter::CONTAIN) {
+
+                        $operator = "LIKE";
+                        $modificator = "%~like~";
+                    }
+
+                    if ($modificator === "%in") {
+
+                        if ($operator === Filter::EQUAL) {
+                            $operator = "IN";
+                        } elseif ($operator === Filter::NOT) {
+                            $operator = "NOT IN";
+                        }
+                    } elseif (in_array($modificator, ["%sN", "%b"], true)) {
+
+                        if ($operator === Filter::EQUAL) {
+                            $operator = "IS";
+                        } elseif ($operator === Filter::NOT) {
+                            $operator = "IS NOT";
+                        }
+                    }
+
+                    if ($operator === Filter::NOT) {
+                        $operator = "!=";
+                    }
+
+                    $result[] = [
+                        "%n %sql " . $modificator,
+                        $name,
+                        $operator,
+                        $value
+                    ];
+                }
             }
-            if (!isset($this->modificators[$type])) {
-                throw new \Exception("Unsupported value type " . $type . " given!");
-            }
-
-            // Get operator
-            if ($operator === "LIKE" && $this->fluent->connection->getDriver() instanceof \DibiPostgreDriver) {
-                $operator = "ILIKE";
-            }
-
-            return array(
-                $joiner,
-                "%n %sql " . $this->modificators[$type],
-                array(
-                    $columnName,
-                    $operator,
-                    $value
-                )
-            );
         }
+
+        return $result;
     }
 
     public function getRaw()
